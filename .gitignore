@@ -1,0 +1,138 @@
+# ==================================================
+# Flutter / Dart
+# ==================================================
+
+.dart_tool/
+.packages
+.pub/
+.pub-cache/
+build/
+flutter_*.png
+flutter_*.log
+
+# Generated plugin files
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Coverage
+coverage/
+
+# Dart documentation
+doc/api/
+
+# ==================================================
+# IDE
+# ==================================================
+
+# IntelliJ / Android Studio
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# VS Code
+.vscode/
+
+# Eclipse
+.project
+.classpath
+.settings/
+
+# ==================================================
+# Android
+# ==================================================
+
+android/.gradle/
+android/.idea/
+android/local.properties
+android/**/GeneratedPluginRegistrant.java
+android/app/debug/
+android/app/profile/
+android/app/release/
+android/captures/
+android/.cxx/
+android/app/.cxx/
+
+# Gradle generated files
+.gradle/
+**/.gradle/
+**/build/
+
+# Signing files
+android/key.properties
+key.properties
+*.jks
+*.keystore
+
+# ==================================================
+# iOS / macOS
+# ==================================================
+
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/ephemeral/
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/Runner/GeneratedPluginRegistrant.*
+
+macos/Pods/
+macos/.symlinks/
+macos/Flutter/ephemeral/
+macos/Flutter/GeneratedPluginRegistrant.swift
+
+# Xcode
+**/DerivedData/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+
+# ==================================================
+# Web
+# ==================================================
+
+lib/generated_plugin_registrant.dart
+
+# ==================================================
+# Windows / Linux
+# ==================================================
+
+windows/flutter/ephemeral/
+linux/flutter/ephemeral/
+
+# ==================================================
+# FVM
+# ==================================================
+
+.fvm/flutter_sdk/
+
+# Keep FVM configuration
+!.fvm/fvm_config.json
+
+# ==================================================
+# Environment and secrets
+# ==================================================
+
+.env
+.env.*
+!.env.example
+
+*.pem
+*.p12
+*.mobileprovision
+
+# Firebase config - ignore for public repositories
+google-services.json
+GoogleService-Info.plist
+
+# ==================================================
+# Logs and temporary files
+# ==================================================
+
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
