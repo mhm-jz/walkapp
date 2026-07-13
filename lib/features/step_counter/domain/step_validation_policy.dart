@@ -7,12 +7,14 @@ final class StepValidationPolicy {
     this.bucketDuration = const Duration(seconds: 10),
     this.bucketCount = 3,
     this.maxRawDeltaPerEvent = 120,
+    this.maximumActivityEvidenceAge = const Duration(seconds: 30),
   });
 
   final Duration windowDuration;
   final Duration bucketDuration;
   final int bucketCount;
   final int maxRawDeltaPerEvent;
+  final Duration maximumActivityEvidenceAge;
 
   bool isValidRawDelta(int delta) {
     return delta > 0 && delta <= maxRawDeltaPerEvent;

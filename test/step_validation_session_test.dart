@@ -35,6 +35,78 @@ void main() {
     expect(session.confirmedSteps, 100);
   });
 
+  test('fresh walking evidence before first step validates new bucket', () {
+    final session = _sessionWithBaseline(origin);
+    final activityTime = origin.add(const Duration(seconds: 1));
+
+    final appliedImmediately = session.recordActivity(
+      activity: TrackingActivity.walking,
+      confidence: TrackingConfidence.high,
+      timestamp: activityTime,
+    );
+    final update = session.recordRawReading(
+      cumulativeRawSteps: 1010,
+      timestamp: activityTime.add(const Duration(seconds: 1)),
+    );
+    final result = session.completeWindow();
+
+    expect(appliedImmediately, isFalse);
+    expect(update.appliedActivityEvidence, isNotNull);
+    expect(update.appliedActivityEvidence!.bucketIndex, 0);
+    expect(result.confirmedStepsAdded, 10);
+  });
+
+  test('one fresh walking event is reused across all three buckets', () {
+    final session = _sessionWithBaseline(origin);
+    final activityTime = origin.add(const Duration(seconds: 1));
+    final windowStart = origin.add(const Duration(seconds: 2));
+    session.recordActivity(
+      activity: TrackingActivity.walking,
+      confidence: TrackingConfidence.high,
+      timestamp: activityTime,
+    );
+
+    final first = session.recordRawReading(
+      cumulativeRawSteps: 1005,
+      timestamp: windowStart,
+    );
+    final second = session.recordRawReading(
+      cumulativeRawSteps: 1012,
+      timestamp: windowStart.add(const Duration(seconds: 11)),
+    );
+    final third = session.recordRawReading(
+      cumulativeRawSteps: 1020,
+      timestamp: windowStart.add(const Duration(seconds: 21)),
+    );
+    final result = session.completeWindow();
+
+    expect(first.appliedActivityEvidence?.bucketIndex, 0);
+    expect(second.appliedActivityEvidence?.bucketIndex, 1);
+    expect(third.appliedActivityEvidence?.bucketIndex, 2);
+    expect(result.confirmedStepsAdded, 20);
+    expect(result.stepsRejected, 0);
+  });
+
+  test('stale walking evidence does not validate a new bucket', () {
+    final session = _sessionWithBaseline(origin);
+    session.recordActivity(
+      activity: TrackingActivity.walking,
+      confidence: TrackingConfidence.high,
+      timestamp: origin,
+    );
+
+    final update = session.recordRawReading(
+      cumulativeRawSteps: 1010,
+      timestamp: origin.add(const Duration(seconds: 31)),
+    );
+    final result = session.completeWindow();
+
+    expect(update.appliedActivityEvidence, isNull);
+    expect(update.staleActivityEvidenceAge, const Duration(seconds: 31));
+    expect(result.confirmedStepsAdded, 0);
+    expect(result.stepsRejected, 10);
+  });
+
   test('steps enter the correct ten-second buckets', () {
     final session = _sessionWithBaseline(origin);
     final windowStart = origin.add(const Duration(seconds: 1));
@@ -118,14 +190,14 @@ void main() {
       session,
       rawSteps: 1020,
       timestamp: windowStart.add(const Duration(seconds: 21)),
-      activity: TrackingActivity.running,
+      activity: TrackingActivity.unknown,
     );
 
     final result = session.completeWindow();
 
-    expect(result.confirmedStepsAdded, 12);
-    expect(result.stepsRejected, 8);
-    expect(session.confirmedSteps, 112);
+    expect(result.confirmedStepsAdded, 5);
+    expect(result.stepsRejected, 15);
+    expect(session.confirmedSteps, 105);
   });
 
   test('validation correction decreases displayed count', () {

@@ -9,12 +9,32 @@ final class RawStepUpdate {
     this.delta = 0,
     this.bucketIndex,
     this.startedWindow = false,
+    this.appliedActivityEvidence,
+    this.staleActivityEvidenceAge,
   });
 
   final RawStepStatus status;
   final int delta;
   final int? bucketIndex;
   final bool startedWindow;
+  final AppliedActivityEvidence? appliedActivityEvidence;
+  final Duration? staleActivityEvidenceAge;
+}
+
+final class AppliedActivityEvidence {
+  const AppliedActivityEvidence({
+    required this.activity,
+    required this.confidence,
+    required this.age,
+    required this.bucketIndex,
+    required this.bucketCandidateSteps,
+  });
+
+  final TrackingActivity activity;
+  final TrackingConfidence confidence;
+  final Duration age;
+  final int bucketIndex;
+  final int bucketCandidateSteps;
 }
 
 final class StepBucketSnapshot {
@@ -67,6 +87,9 @@ final class StepValidationSession {
   int _provisionalSteps = 0;
   int? _lastRawSteps;
   DateTime? _windowStartedAt;
+  TrackingActivity? _latestActivity;
+  TrackingConfidence? _latestActivityConfidence;
+  DateTime? _latestActivityTimestamp;
 
   int get confirmedSteps => _confirmedSteps;
   int get provisionalSteps => _provisionalSteps;
@@ -74,6 +97,10 @@ final class StepValidationSession {
   bool get sensorReady => _lastRawSteps != null;
   bool get hasActiveWindow => _windowStartedAt != null;
   DateTime? get windowStartedAt => _windowStartedAt;
+  int? get lastRawSteps => _lastRawSteps;
+  TrackingActivity? get latestActivity => _latestActivity;
+  TrackingConfidence? get latestActivityConfidence => _latestActivityConfidence;
+  DateTime? get latestActivityTimestamp => _latestActivityTimestamp;
 
   List<StepBucketSnapshot> get buckets {
     return List<StepBucketSnapshot>.unmodifiable(
@@ -122,11 +149,18 @@ final class StepValidationSession {
     _buckets[bucketIndex].candidateSteps += delta;
     _provisionalSteps += delta;
 
+    final evidenceResult = _applyLatestActivityEvidence(
+      bucketIndex: bucketIndex,
+      timestamp: timestamp,
+    );
+
     return RawStepUpdate(
       status: RawStepStatus.provisionalAdded,
       delta: delta,
       bucketIndex: bucketIndex,
       startedWindow: startedWindow,
+      appliedActivityEvidence: evidenceResult.applied,
+      staleActivityEvidenceAge: evidenceResult.staleAge,
     );
   }
 
@@ -135,6 +169,10 @@ final class StepValidationSession {
     required TrackingConfidence confidence,
     required DateTime timestamp,
   }) {
+    _latestActivity = activity;
+    _latestActivityConfidence = confidence;
+    _latestActivityTimestamp = timestamp;
+
     final startedAt = _windowStartedAt;
     if (startedAt == null || isWindowExpired(timestamp)) return false;
 
@@ -143,6 +181,23 @@ final class StepValidationSession {
 
     _buckets[bucketIndex].recordActivity(activity, confidence);
     return true;
+  }
+
+  int? bucketIndexAt(DateTime timestamp) {
+    final startedAt = _windowStartedAt;
+    if (startedAt == null || isWindowExpired(timestamp)) return null;
+    return policy.bucketIndex(timestamp.difference(startedAt));
+  }
+
+  void recordActivityForBucket({
+    required int bucketIndex,
+    required TrackingActivity activity,
+    required TrackingConfidence confidence,
+  }) {
+    if (bucketIndex < 0 || bucketIndex >= _buckets.length) {
+      throw RangeError.index(bucketIndex, _buckets, 'bucketIndex');
+    }
+    _buckets[bucketIndex].recordActivity(activity, confidence);
   }
 
   WindowValidationResult completeWindow() {
@@ -174,6 +229,9 @@ final class StepValidationSession {
   int stop() {
     final discardedSteps = _provisionalSteps;
     _lastRawSteps = null;
+    _latestActivity = null;
+    _latestActivityConfidence = null;
+    _latestActivityTimestamp = null;
     _clearWindow();
     return discardedSteps;
   }
@@ -190,6 +248,45 @@ final class StepValidationSession {
       bucket.clear();
     }
   }
+
+  _ActivityEvidenceResult _applyLatestActivityEvidence({
+    required int bucketIndex,
+    required DateTime timestamp,
+  }) {
+    final activity = _latestActivity;
+    final confidence = _latestActivityConfidence;
+    final evidenceTimestamp = _latestActivityTimestamp;
+    if (activity == null || confidence == null || evidenceTimestamp == null) {
+      return const _ActivityEvidenceResult();
+    }
+
+    final age = timestamp.difference(evidenceTimestamp);
+    if (age.isNegative || age > policy.maximumActivityEvidenceAge) {
+      return _ActivityEvidenceResult(staleAge: age);
+    }
+
+    recordActivityForBucket(
+      bucketIndex: bucketIndex,
+      activity: activity,
+      confidence: confidence,
+    );
+    return _ActivityEvidenceResult(
+      applied: AppliedActivityEvidence(
+        activity: activity,
+        confidence: confidence,
+        age: age,
+        bucketIndex: bucketIndex,
+        bucketCandidateSteps: _buckets[bucketIndex].candidateSteps,
+      ),
+    );
+  }
+}
+
+final class _ActivityEvidenceResult {
+  const _ActivityEvidenceResult({this.applied, this.staleAge});
+
+  final AppliedActivityEvidence? applied;
+  final Duration? staleAge;
 }
 
 final class _MutableStepBucket {

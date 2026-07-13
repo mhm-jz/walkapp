@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../data/step_snapshot.dart';
 import '../domain/step_snapshot_store.dart';
 import '../domain/step_tracking_service.dart';
+import '../step_diagnostics.dart';
 
 final class StepCounterController extends ChangeNotifier {
   StepCounterController({
@@ -128,7 +129,9 @@ final class StepCounterController extends ChangeNotifier {
     final store = await storeFactory.create();
 
     try {
-      final persistedSnapshot = await store.readSnapshot();
+      final persistedSnapshot = await store.readSnapshot(
+        reason: 'serviceStopped',
+      );
 
       // Force Stop may prevent TaskHandler.onDestroy from running.
       // Therefore isRunningService, not Hive's old flag, is the source of truth.
@@ -140,7 +143,11 @@ final class StepCounterController extends ChangeNotifier {
       );
 
       if (persistedSnapshot.isTracking) {
-        await store.writeSnapshot(_snapshot, flush: true);
+        await store.writeSnapshot(
+          _snapshot,
+          flush: true,
+          reason: 'stoppedStateCorrection',
+        );
       }
     } finally {
       await store.close();
@@ -156,6 +163,9 @@ final class StepCounterController extends ChangeNotifier {
   }
 
   void _onReceiveTaskData(Object data) {
+    logStepDiagnostic(
+      '[STEP_UI_RAW_DATA] type=${data.runtimeType} payload=$data',
+    );
     if (_disposed || data is! Map) return;
 
     if (data['type']?.toString() != 'step_snapshot') {
@@ -171,8 +181,19 @@ final class StepCounterController extends ChangeNotifier {
       ),
     );
 
+    logStepDiagnostic(
+      '[STEP_UI_RECEIVE] confirmedSteps=${_snapshot.confirmedSteps} '
+      'provisionalSteps=${_snapshot.provisionalSteps} '
+      'displayedSteps=${_snapshot.displayedSteps}',
+    );
+
     _uiError = null;
     notifyListeners();
+    logStepDiagnostic(
+      '[STEP_UI_NOTIFY] confirmed=${_snapshot.confirmedSteps} '
+      'provisional=${_snapshot.provisionalSteps} '
+      'displayed=${_snapshot.displayedSteps} tracking=${_snapshot.isTracking}',
+    );
   }
 
   void _setBusy(bool value) {

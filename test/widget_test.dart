@@ -112,7 +112,8 @@ final class _MemoryStepSnapshotStore implements StepSnapshotStore {
   Future<void> close() async {}
 
   @override
-  Future<StepSnapshot> readSnapshot() async => snapshot;
+  Future<StepSnapshot> readSnapshot({String reason = 'unspecified'}) async =>
+      snapshot;
 
   @override
   Future<StepSnapshot> resetSnapshot() async {
@@ -121,7 +122,11 @@ final class _MemoryStepSnapshotStore implements StepSnapshotStore {
   }
 
   @override
-  Future<void> writeSnapshot(StepSnapshot value, {bool flush = false}) async {
+  Future<void> writeSnapshot(
+    StepSnapshot value, {
+    bool flush = false,
+    String reason = 'unspecified',
+  }) async {
     snapshot = value;
   }
 }

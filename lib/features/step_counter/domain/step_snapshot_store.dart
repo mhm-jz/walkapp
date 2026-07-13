@@ -1,9 +1,13 @@
 import '../data/step_snapshot.dart';
 
 abstract interface class StepSnapshotStore {
-  Future<StepSnapshot> readSnapshot();
+  Future<StepSnapshot> readSnapshot({String reason = 'unspecified'});
 
-  Future<void> writeSnapshot(StepSnapshot snapshot, {bool flush = false});
+  Future<void> writeSnapshot(
+    StepSnapshot snapshot, {
+    bool flush = false,
+    String reason = 'unspecified',
+  });
 
   Future<StepSnapshot> resetSnapshot();
 
