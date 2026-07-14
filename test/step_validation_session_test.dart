@@ -87,8 +87,9 @@ void main() {
     expect(result.stepsRejected, 0);
   });
 
-  test('stale walking evidence does not validate a new bucket', () {
+  test('walking remains current until another activity event replaces it', () {
     final session = _sessionWithBaseline(origin);
+
     session.recordActivity(
       activity: TrackingActivity.walking,
       confidence: TrackingConfidence.high,
@@ -97,16 +98,63 @@ void main() {
 
     final update = session.recordRawReading(
       cumulativeRawSteps: 1010,
-      timestamp: origin.add(const Duration(seconds: 31)),
+      timestamp: origin.add(const Duration(minutes: 3)),
     );
+
     final result = session.completeWindow();
 
-    expect(update.appliedActivityEvidence, isNull);
-    expect(update.staleActivityEvidenceAge, const Duration(seconds: 31));
-    expect(result.confirmedStepsAdded, 0);
-    expect(result.stepsRejected, 10);
+    expect(update.status, RawStepStatus.provisionalAdded);
+    expect(update.appliedActivityEvidence, isNotNull);
+
+    expect(update.appliedActivityEvidence!.activity, TrackingActivity.walking);
+
+    expect(update.appliedActivityEvidence!.age, const Duration(minutes: 3));
+
+    expect(result.confirmedStepsAdded, 10);
+    expect(result.stepsRejected, 0);
   });
 
+  test('a new vehicle event replaces walking state for future steps', () {
+    final session = _sessionWithBaseline(origin);
+
+    session.recordActivity(
+      activity: TrackingActivity.walking,
+      confidence: TrackingConfidence.high,
+      timestamp: origin.add(const Duration(seconds: 1)),
+    );
+
+    session.recordRawReading(
+      cumulativeRawSteps: 1010,
+      timestamp: origin.add(const Duration(seconds: 2)),
+    );
+
+    final walkingResult = session.completeWindow();
+
+    expect(walkingResult.confirmedStepsAdded, 10);
+    expect(session.confirmedSteps, 10);
+
+    session.recordActivity(
+      activity: TrackingActivity.inVehicle,
+      confidence: TrackingConfidence.high,
+      timestamp: origin.add(const Duration(minutes: 2)),
+    );
+
+    final vehicleUpdate = session.recordRawReading(
+      cumulativeRawSteps: 1020,
+      timestamp: origin.add(const Duration(minutes: 2, seconds: 1)),
+    );
+
+    final vehicleResult = session.completeWindow();
+
+    expect(
+      vehicleUpdate.appliedActivityEvidence?.activity,
+      TrackingActivity.inVehicle,
+    );
+
+    expect(vehicleResult.confirmedStepsAdded, 0);
+    expect(vehicleResult.stepsRejected, 10);
+    expect(session.confirmedSteps, 10);
+  });
   test('steps enter the correct ten-second buckets', () {
     final session = _sessionWithBaseline(origin);
     final windowStart = origin.add(const Duration(seconds: 1));

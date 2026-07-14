@@ -10,7 +10,6 @@ final class RawStepUpdate {
     this.bucketIndex,
     this.startedWindow = false,
     this.appliedActivityEvidence,
-    this.staleActivityEvidenceAge,
   });
 
   final RawStepStatus status;
@@ -18,7 +17,6 @@ final class RawStepUpdate {
   final int? bucketIndex;
   final bool startedWindow;
   final AppliedActivityEvidence? appliedActivityEvidence;
-  final Duration? staleActivityEvidenceAge;
 }
 
 final class AppliedActivityEvidence {
@@ -149,7 +147,7 @@ final class StepValidationSession {
     _buckets[bucketIndex].candidateSteps += delta;
     _provisionalSteps += delta;
 
-    final evidenceResult = _applyLatestActivityEvidence(
+    final appliedActivity = _applyCurrentActivityState(
       bucketIndex: bucketIndex,
       timestamp: timestamp,
     );
@@ -159,8 +157,7 @@ final class StepValidationSession {
       delta: delta,
       bucketIndex: bucketIndex,
       startedWindow: startedWindow,
-      appliedActivityEvidence: evidenceResult.applied,
-      staleActivityEvidenceAge: evidenceResult.staleAge,
+      appliedActivityEvidence: appliedActivity,
     );
   }
 
@@ -249,20 +246,24 @@ final class StepValidationSession {
     }
   }
 
-  _ActivityEvidenceResult _applyLatestActivityEvidence({
+  AppliedActivityEvidence? _applyCurrentActivityState({
     required int bucketIndex,
     required DateTime timestamp,
   }) {
     final activity = _latestActivity;
     final confidence = _latestActivityConfidence;
-    final evidenceTimestamp = _latestActivityTimestamp;
-    if (activity == null || confidence == null || evidenceTimestamp == null) {
-      return const _ActivityEvidenceResult();
+    final activityChangedAt = _latestActivityTimestamp;
+
+    if (activity == null || confidence == null || activityChangedAt == null) {
+      return null;
     }
 
-    final age = timestamp.difference(evidenceTimestamp);
-    if (age.isNegative || age > policy.maximumActivityEvidenceAge) {
-      return _ActivityEvidenceResult(staleAge: age);
+    final age = timestamp.difference(activityChangedAt);
+
+    // فقط از Activity مربوط به آینده استفاده نکن.
+    // قدیمی‌بودن Activity باعث منقضی‌شدن State نمی‌شود.
+    if (age.isNegative) {
+      return null;
     }
 
     recordActivityForBucket(
@@ -270,23 +271,15 @@ final class StepValidationSession {
       activity: activity,
       confidence: confidence,
     );
-    return _ActivityEvidenceResult(
-      applied: AppliedActivityEvidence(
-        activity: activity,
-        confidence: confidence,
-        age: age,
-        bucketIndex: bucketIndex,
-        bucketCandidateSteps: _buckets[bucketIndex].candidateSteps,
-      ),
+
+    return AppliedActivityEvidence(
+      activity: activity,
+      confidence: confidence,
+      age: age,
+      bucketIndex: bucketIndex,
+      bucketCandidateSteps: _buckets[bucketIndex].candidateSteps,
     );
   }
-}
-
-final class _ActivityEvidenceResult {
-  const _ActivityEvidenceResult({this.applied, this.staleAge});
-
-  final AppliedActivityEvidence? applied;
-  final Duration? staleAge;
 }
 
 final class _MutableStepBucket {

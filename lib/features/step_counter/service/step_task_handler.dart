@@ -158,24 +158,16 @@ final class StepTaskHandler extends TaskHandler {
       case RawStepStatus.ignored:
         return;
       case RawStepStatus.provisionalAdded:
-        final appliedEvidence = update.appliedActivityEvidence;
-        if (appliedEvidence != null) {
+        final appliedActivity = update.appliedActivityEvidence;
+
+        if (appliedActivity != null) {
           logStepDiagnostic(
             '[STEP_ACTIVITY_APPLIED] '
-            'type=${appliedEvidence.activity.storageName} '
-            'confidence=${appliedEvidence.confidence.storageName} '
-            'ageMs=${appliedEvidence.age.inMilliseconds} '
-            'bucket=${appliedEvidence.bucketIndex} '
-            'steps=${appliedEvidence.bucketCandidateSteps}',
-          );
-        } else if (update.staleActivityEvidenceAge != null) {
-          logStepDiagnostic(
-            '[STEP_ACTIVITY_STALE] '
-            'type=${session.latestActivity?.storageName ?? 'UNKNOWN'} '
-            'confidence='
-            '${session.latestActivityConfidence?.storageName ?? 'LOW'} '
-            'ageMs=${update.staleActivityEvidenceAge!.inMilliseconds} '
-            'bucket=${update.bucketIndex ?? 'none'}',
+            'type=${appliedActivity.activity.storageName} '
+            'confidence=${appliedActivity.confidence.storageName} '
+            'stateAgeMs=${appliedActivity.age.inMilliseconds} '
+            'bucket=${appliedActivity.bucketIndex} '
+            'steps=${appliedActivity.bucketCandidateSteps}',
           );
         }
         if (update.startedWindow) {
