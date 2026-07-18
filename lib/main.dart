@@ -1,41 +1,174 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-import 'features/step_counter/presentation/step_counter_page.dart';
-import 'features/step_counter/presentation/step_counter_controller.dart';
+import 'core/preferences/app_preferences.dart';
+import 'core/preferences/app_settings_controller.dart';
+import 'core/theme/app_theme.dart';
+import 'features/auth/presentation/login_page.dart';
+import 'features/auth/presentation/onboarding_page.dart';
+import 'features/auth/presentation/register_page.dart';
+import 'features/app_shell/presentation/app_shell_page.dart';
 import 'features/step_counter/data/step_local_store.dart';
+import 'features/step_counter/presentation/step_counter_controller.dart';
 import 'features/step_counter/service/step_foreground_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  final preferences = await AppPreferences.open();
+  final settingsController = AppSettingsController(preferences);
   final trackingService = StepForegroundService()..initialize();
   final controller = StepCounterController(
     trackingService: trackingService,
     storeFactory: const AppStepSnapshotStoreFactory(),
   );
-  runApp(WalkingApp(controller: controller));
+  runApp(
+    WalkingApp(controller: controller, settingsController: settingsController),
+  );
 }
 
 class WalkingApp extends StatefulWidget {
-  const WalkingApp({required this.controller, super.key});
+  const WalkingApp({
+    required this.controller,
+    this.settingsController,
+    super.key,
+  });
 
   final StepCounterController controller;
+  final AppSettingsController? settingsController;
 
   @override
   State<WalkingApp> createState() => _WalkingAppState();
 }
 
 class _WalkingAppState extends State<WalkingApp> {
+  final _navigatorKey = GlobalKey<NavigatorState>();
+  late final AppSettingsController _settingsController =
+      widget.settingsController ?? AppSettingsController.inMemory();
+
+  Route<void> _routeTo(Widget page) {
+    return PageRouteBuilder<void>(
+      pageBuilder: (context, animation, secondaryAnimation) => page,
+      transitionDuration: const Duration(milliseconds: 280),
+      reverseTransitionDuration: const Duration(milliseconds: 220),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+          child: SlideTransition(
+            position:
+                Tween<Offset>(
+                  begin: const Offset(0.025, 0),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                  ),
+                ),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+
+  void _openAppShell() {
+    _navigatorKey.currentState?.pushAndRemoveUntil(
+      _routeTo(
+        AppShellPage(
+          stepController: widget.controller,
+          settingsController: _settingsController,
+          onLogout: _logout,
+        ),
+      ),
+      (route) => false,
+    );
+  }
+
+  void _logout() {
+    _navigatorKey.currentState?.pushAndRemoveUntil(
+      _routeTo(_loginPage()),
+      (route) => false,
+    );
+  }
+
+  RegisterPage _registerPage() {
+    return RegisterPage(
+      settingsController: _settingsController,
+      onAuthenticated: _openAppShell,
+      onLogin: _replaceWithLogin,
+      onBack: () => _navigatorKey.currentState?.pop(),
+    );
+  }
+
+  LoginPage _loginPage() {
+    return LoginPage(
+      settingsController: _settingsController,
+      onAuthenticated: _openAppShell,
+      onRegister: _replaceWithRegister,
+      onBack: () => _navigatorKey.currentState?.pop(),
+    );
+  }
+
+  void _openRegister() {
+    _navigatorKey.currentState?.push(_routeTo(_registerPage()));
+  }
+
+  void _openLogin() {
+    _navigatorKey.currentState?.push(_routeTo(_loginPage()));
+  }
+
+  void _replaceWithRegister() {
+    _navigatorKey.currentState?.pushReplacement(_routeTo(_registerPage()));
+  }
+
+  void _replaceWithLogin() {
+    _navigatorKey.currentState?.pushReplacement(_routeTo(_loginPage()));
+  }
+
   @override
   void dispose() {
     widget.controller.dispose();
+    _settingsController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: StepCounterPage(controller: widget.controller),
+    return AnimatedBuilder(
+      animation: _settingsController,
+      builder: (context, child) => MaterialApp(
+        navigatorKey: _navigatorKey,
+        debugShowCheckedModeBanner: false,
+        title: 'WalkApp',
+        theme: AppTheme.light,
+        darkTheme: AppTheme.dark,
+        themeMode: _settingsController.themeMode,
+        themeAnimationDuration: const Duration(milliseconds: 350),
+        builder: (context, child) {
+          final theme = Theme.of(context);
+          final dark = theme.brightness == Brightness.dark;
+          return AnnotatedRegion<SystemUiOverlayStyle>(
+            value: SystemUiOverlayStyle(
+              statusBarColor: Colors.transparent,
+              statusBarIconBrightness: dark
+                  ? Brightness.light
+                  : Brightness.dark,
+              statusBarBrightness: dark ? Brightness.dark : Brightness.light,
+              systemNavigationBarColor: theme.colorScheme.surface,
+              systemNavigationBarDividerColor: theme.colorScheme.outlineVariant,
+              systemNavigationBarIconBrightness: dark
+                  ? Brightness.light
+                  : Brightness.dark,
+            ),
+            child: child ?? const SizedBox.shrink(),
+          );
+        },
+        home: OnboardingPage(
+          settingsController: _settingsController,
+          onGetStarted: _openRegister,
+          onLogin: _openLogin,
+        ),
+      ),
     );
   }
 }

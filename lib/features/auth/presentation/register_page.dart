@@ -1,0 +1,206 @@
+import 'package:flutter/material.dart';
+
+import '../../../core/design_system/components/app_button.dart';
+import '../../../core/design_system/components/app_fields.dart';
+import '../../../core/design_system/components/app_selection.dart';
+import '../../../core/design_system/extensions/app_theme_extension.dart';
+import '../../../core/design_system/tokens/app_tokens.dart';
+import '../../../core/preferences/app_settings_controller.dart';
+import 'auth_form_controller.dart';
+import 'widgets/auth_brand_header.dart';
+import 'widgets/auth_form_container.dart';
+import 'widgets/auth_theme_action.dart';
+
+class RegisterPage extends StatefulWidget {
+  const RegisterPage({
+    required this.settingsController,
+    required this.onAuthenticated,
+    required this.onLogin,
+    required this.onBack,
+    super.key,
+  });
+
+  final AppSettingsController settingsController;
+  final VoidCallback onAuthenticated;
+  final VoidCallback onLogin;
+  final VoidCallback onBack;
+
+  @override
+  State<RegisterPage> createState() => _RegisterPageState();
+}
+
+class _RegisterPageState extends State<RegisterPage> {
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmationController = TextEditingController();
+  final _formController = AuthFormController(AuthFormType.register);
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmationController.dispose();
+    _formController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final success = await _formController.submit(
+      fullName: _nameController.text,
+      email: _emailController.text,
+      password: _passwordController.text,
+      confirmation: _confirmationController.text,
+    );
+    if (success && mounted) widget.onAuthenticated();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AuthPageLayout(
+      backAction: AppIconButton(
+        icon: Icons.arrow_back_rounded,
+        tooltip: 'Back',
+        onPressed: _formController.isLoading ? null : widget.onBack,
+      ),
+      themeAction: AuthThemeAction(
+        settingsController: widget.settingsController,
+      ),
+      header: const AuthBrandHeader(
+        title: 'Create your account',
+        message: 'Start building a healthier daily routine.',
+      ),
+      form: AuthFormContainer(
+        child: AnimatedBuilder(
+          animation: _formController,
+          builder: (context, child) => AutofillGroup(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                AppTextField(
+                  controller: _nameController,
+                  label: 'Full name',
+                  hint: 'Your name',
+                  errorText: _formController.errorFor('name'),
+                  keyboardType: TextInputType.name,
+                  prefixIcon: Icons.person_outline,
+                  textInputAction: TextInputAction.next,
+                  textCapitalization: TextCapitalization.words,
+                  autofillHints: const <String>[AutofillHints.name],
+                  enabled: !_formController.isLoading,
+                  onChanged: (_) => _formController.clearError('name'),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                AppTextField(
+                  controller: _emailController,
+                  label: 'Email address',
+                  hint: 'you@example.com',
+                  errorText: _formController.errorFor('email'),
+                  keyboardType: TextInputType.emailAddress,
+                  prefixIcon: Icons.mail_outline,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const <String>[AutofillHints.email],
+                  enabled: !_formController.isLoading,
+                  onChanged: (_) => _formController.clearError('email'),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                AppTextField(
+                  controller: _passwordController,
+                  label: 'Password',
+                  hint: 'At least 8 characters',
+                  errorText: _formController.errorFor('password'),
+                  prefixIcon: Icons.lock_outline,
+                  suffixIcon: PasswordVisibilityButton(
+                    obscured: _formController.obscurePassword,
+                    onPressed: _formController.togglePasswordVisibility,
+                  ),
+                  obscureText: _formController.obscurePassword,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const <String>[AutofillHints.newPassword],
+                  enabled: !_formController.isLoading,
+                  onChanged: (_) {
+                    _formController
+                      ..clearError('password')
+                      ..clearError('confirmation');
+                  },
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                AppTextField(
+                  controller: _confirmationController,
+                  label: 'Confirm password',
+                  errorText: _formController.errorFor('confirmation'),
+                  prefixIcon: Icons.lock_reset_outlined,
+                  suffixIcon: PasswordVisibilityButton(
+                    obscured: _formController.obscureConfirmation,
+                    onPressed: _formController.toggleConfirmationVisibility,
+                  ),
+                  obscureText: _formController.obscureConfirmation,
+                  textInputAction: TextInputAction.done,
+                  autofillHints: const <String>[AutofillHints.newPassword],
+                  enabled: !_formController.isLoading,
+                  onChanged: (_) => _formController.clearError('confirmation'),
+                  onSubmitted: (_) => _submit(),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                AppCheckbox(
+                  value: _formController.acceptTerms,
+                  onChanged: _formController.isLoading
+                      ? null
+                      : (value) =>
+                            _formController.setAcceptTerms(value ?? false),
+                  label: 'I accept the Terms of Use and Privacy Policy',
+                ),
+                AnimatedSize(
+                  duration: AppDurations.fast,
+                  child: _formController.errorFor('terms') == null
+                      ? const SizedBox.shrink()
+                      : Padding(
+                          padding: const EdgeInsets.only(
+                            left: AppSpacing.md,
+                            bottom: AppSpacing.sm,
+                          ),
+                          child: Text(
+                            _formController.errorFor('terms')!,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
+                          ),
+                        ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                AppButton(
+                  label: 'Create account',
+                  icon: Icons.arrow_forward_rounded,
+                  expanded: true,
+                  isLoading: _formController.isLoading,
+                  onPressed: _formController.isLoading ? null : _submit,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: <Widget>[
+                    Text(
+                      'Already have an account?',
+                      style: TextStyle(color: context.appTheme.textSecondary),
+                    ),
+                    AppButton(
+                      label: 'Log in',
+                      variant: AppButtonVariant.text,
+                      onPressed: _formController.isLoading
+                          ? null
+                          : widget.onLogin,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
