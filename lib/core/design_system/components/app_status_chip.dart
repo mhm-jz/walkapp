@@ -26,18 +26,11 @@ class AppStatusChip extends StatelessWidget {
       AppStatus.error => scheme.error,
       AppStatus.neutral => scheme.onSurfaceVariant,
     };
-    final foreground = scheme.brightness == Brightness.light
-        ? Color.alphaBlend(Colors.black.withValues(alpha: 0.32), base)
-        : base;
-    return Semantics(
-      label: label,
-      child: Chip(
-        avatar: icon == null ? null : Icon(icon, size: 18, color: foreground),
-        label: Text(label),
-        backgroundColor: base.withValues(alpha: 0.14),
-        labelStyle: TextStyle(color: foreground, fontWeight: FontWeight.w600),
-        visualDensity: VisualDensity.compact,
-      ),
+    return Chip(
+      avatar: icon == null ? null : Icon(icon, size: 18, color: base),
+      label: Text(label),
+      backgroundColor: base.withValues(alpha: 0.14),
+      labelStyle: TextStyle(color: base, fontWeight: FontWeight.w600),
     );
   }
 }

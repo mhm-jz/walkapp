@@ -132,11 +132,12 @@ class _OnboardingPageState extends State<OnboardingPage> {
                         onPressed: _handlePrimaryAction,
                       ),
                       const SizedBox(height: AppSpacing.xs),
-                      Wrap(
-                        alignment: WrapAlignment.center,
-                        crossAxisAlignment: WrapCrossAlignment.center,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: <Widget>[
-                          const Text('Already have an account?'),
+                          const Flexible(
+                            child: Text('Already have an account?'),
+                          ),
                           AppButton(
                             label: 'Login',
                             variant: AppButtonVariant.text,

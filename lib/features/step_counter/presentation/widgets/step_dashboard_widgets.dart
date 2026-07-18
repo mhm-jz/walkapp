@@ -355,45 +355,41 @@ class ActivitySummaryCard extends StatelessWidget {
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: AppSpacing.md),
-          AnimatedSwitcher(
-            duration: AppDurations.fast,
-            child: Row(
-              key: ValueKey<TrackingActivity>(activity),
-              children: <Widget>[
-                Container(
-                  width: AppSizes.minTouchTarget,
-                  height: AppSizes.minTouchTarget,
-                  decoration: BoxDecoration(
-                    color: presentation.color.withValues(alpha: 0.13),
-                    borderRadius: BorderRadius.circular(AppRadii.lg),
-                  ),
-                  child: Icon(
-                    presentation.icon,
-                    color: presentation.color,
-                    size: 28,
-                  ),
+          Row(
+            children: <Widget>[
+              Container(
+                width: AppSizes.minTouchTarget,
+                height: AppSizes.minTouchTarget,
+                decoration: BoxDecoration(
+                  color: presentation.color.withValues(alpha: 0.13),
+                  borderRadius: BorderRadius.circular(AppRadii.lg),
                 ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        presentation.label,
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        _confidenceLabel(confidence),
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: context.appTheme.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
+                child: Icon(
+                  presentation.icon,
+                  color: presentation.color,
+                  size: 28,
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      presentation.label,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      _confidenceLabel(confidence),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: context.appTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: AppSpacing.md),
           Wrap(

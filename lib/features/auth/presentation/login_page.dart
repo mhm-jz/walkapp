@@ -139,11 +139,10 @@ class _LoginPageState extends State<LoginPage> {
                   onPressed: _formController.isLoading ? null : _submit,
                 ),
                 const SizedBox(height: AppSpacing.md),
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  crossAxisAlignment: WrapCrossAlignment.center,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: <Widget>[
-                    const Text('New to WalkApp?'),
+                    const Flexible(child: Text('New to WalkApp?')),
                     AppButton(
                       label: 'Create account',
                       variant: AppButtonVariant.text,

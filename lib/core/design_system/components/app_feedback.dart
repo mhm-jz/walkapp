@@ -13,12 +13,8 @@ abstract final class AppDialog {
   }) {
     return showDialog<T>(
       context: context,
-      builder: (context) => AlertDialog(
-        scrollable: true,
-        title: Text(title),
-        content: content,
-        actions: actions,
-      ),
+      builder: (context) =>
+          AlertDialog(title: Text(title), content: content, actions: actions),
     );
   }
 }
@@ -28,22 +24,15 @@ abstract final class AppBottomSheet {
     return showModalBottomSheet<T>(
       context: context,
       isScrollControlled: true,
-      useSafeArea: true,
       builder: (context) => SafeArea(
-        child: Center(
-          heightFactor: 1,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 640),
-            child: Padding(
-              padding: EdgeInsets.only(
-                left: AppSpacing.xl,
-                top: AppSpacing.sm,
-                right: AppSpacing.xl,
-                bottom: MediaQuery.viewInsetsOf(context).bottom + AppSpacing.xl,
-              ),
-              child: child,
-            ),
+        child: Padding(
+          padding: EdgeInsets.only(
+            left: AppSpacing.xl,
+            top: AppSpacing.sm,
+            right: AppSpacing.xl,
+            bottom: MediaQuery.viewInsetsOf(context).bottom + AppSpacing.xl,
           ),
+          child: child,
         ),
       ),
     );
@@ -59,13 +48,8 @@ abstract final class AppSnackbar {
     final scheme = Theme.of(context).colorScheme;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          message,
-          style: isError ? TextStyle(color: scheme.onError) : null,
-        ),
+        content: Text(message),
         backgroundColor: isError ? scheme.error : null,
-        showCloseIcon: true,
-        closeIconColor: isError ? scheme.onError : null,
       ),
     );
   }

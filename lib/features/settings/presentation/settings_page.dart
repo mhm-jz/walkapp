@@ -34,7 +34,7 @@ class SettingsPage extends StatelessWidget {
       context,
       title: 'Log out?',
       content: const Text(
-        'You’ll return to Login. Your step data and preferences will stay on this device.',
+        'You’ll return to Login. Your step history and preferences will stay on this device.',
       ),
       actions: <Widget>[
         AppButton(
@@ -222,7 +222,7 @@ class SettingsPage extends StatelessWidget {
                               const Align(
                                 alignment: Alignment.centerLeft,
                                 child: AppStatusChip(
-                                  label: 'Local profile',
+                                  label: 'UI-only account',
                                   status: AppStatus.neutral,
                                   icon: Icons.person_outline,
                                 ),

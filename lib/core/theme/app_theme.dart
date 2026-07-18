@@ -12,7 +12,7 @@ abstract final class AppTheme {
     final scheme = ColorScheme(
       brightness: brightness,
       primary: dark ? AppColors.darkPrimary : AppColors.lightPrimary,
-      onPrimary: AppColors.darkBackground,
+      onPrimary: dark ? AppColors.darkBackground : Colors.white,
       primaryContainer: dark
           ? AppColors.darkPrimaryContainer
           : AppColors.lightPrimaryContainer,
@@ -20,7 +20,7 @@ abstract final class AppTheme {
           ? AppColors.darkTextPrimary
           : const Color(0xFF14532D),
       secondary: dark ? AppColors.darkSecondary : AppColors.lightSecondary,
-      onSecondary: AppColors.darkBackground,
+      onSecondary: dark ? AppColors.darkBackground : Colors.white,
       secondaryContainer: dark
           ? AppColors.darkSecondaryContainer
           : AppColors.lightSecondaryContainer,
@@ -28,7 +28,7 @@ abstract final class AppTheme {
           ? AppColors.darkTextPrimary
           : const Color(0xFF164E63),
       error: dark ? AppColors.darkError : AppColors.lightError,
-      onError: AppColors.darkBackground,
+      onError: dark ? AppColors.darkBackground : Colors.white,
       errorContainer: dark ? const Color(0xFF7F1D1D) : const Color(0xFFFEE2E2),
       onErrorContainer: dark
           ? const Color(0xFFFECACA)
@@ -80,10 +80,6 @@ abstract final class AppTheme {
       borderRadius: BorderRadius.circular(AppRadii.md),
       borderSide: BorderSide(color: scheme.outline),
     );
-    final errorTextColor = dark
-        ? scheme.error
-        : Color.alphaBlend(Colors.black.withValues(alpha: 0.24), scheme.error);
-
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
@@ -98,31 +94,6 @@ abstract final class AppTheme {
         foregroundColor: scheme.onSurface,
         elevation: 0,
         scrolledUnderElevation: 0,
-      ),
-      navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: scheme.surface,
-        indicatorColor: scheme.primaryContainer,
-        elevation: 0,
-        labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>((states) {
-          final selected = states.contains(WidgetState.selected);
-          return textTheme.labelMedium?.copyWith(
-            color: selected
-                ? scheme.onPrimaryContainer
-                : scheme.onSurfaceVariant,
-            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-          );
-        }),
-        iconTheme: WidgetStateProperty.resolveWith<IconThemeData?>((states) {
-          final selected = states.contains(WidgetState.selected);
-          return IconThemeData(
-            color: selected ? scheme.primary : scheme.onSurfaceVariant,
-          );
-        }),
-      ),
-      dividerTheme: DividerThemeData(
-        color: scheme.outlineVariant,
-        thickness: 1,
-        space: AppSpacing.xl,
       ),
       cardTheme: CardThemeData(
         color: scheme.surface,
@@ -141,8 +112,6 @@ abstract final class AppTheme {
           ),
           shape: shape,
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-          disabledBackgroundColor: scheme.onSurface.withValues(alpha: 0.12),
-          disabledForegroundColor: scheme.onSurface.withValues(alpha: 0.46),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -186,14 +155,6 @@ abstract final class AppTheme {
         focusedErrorBorder: border.copyWith(
           borderSide: BorderSide(color: scheme.error, width: 1.5),
         ),
-        disabledBorder: border.copyWith(
-          borderSide: BorderSide(color: scheme.outline.withValues(alpha: 0.6)),
-        ),
-        errorStyle: TextStyle(color: errorTextColor),
-        labelStyle: TextStyle(color: scheme.onSurfaceVariant),
-        hintStyle: TextStyle(
-          color: scheme.onSurfaceVariant.withValues(alpha: 0.8),
-        ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.lg,
           vertical: AppSpacing.lg,
@@ -217,8 +178,6 @@ abstract final class AppTheme {
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: scheme.surface,
-        surfaceTintColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(AppSpacing.xl),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadii.lg),
         ),
@@ -226,7 +185,6 @@ abstract final class AppTheme {
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: scheme.surface,
         modalBackgroundColor: scheme.surface,
-        surfaceTintColor: Colors.transparent,
         showDragHandle: true,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
@@ -237,13 +195,11 @@ abstract final class AppTheme {
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         shape: shape,
-        backgroundColor: scheme.inverseSurface,
-        contentTextStyle: TextStyle(color: scheme.onInverseSurface),
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(
         color: scheme.primary,
-        linearTrackColor: scheme.primary.withValues(alpha: 0.14),
-        circularTrackColor: scheme.primary.withValues(alpha: 0.12),
+        linearTrackColor: scheme.primaryContainer,
+        circularTrackColor: scheme.surfaceContainerHighest,
       ),
       extensions: <ThemeExtension<dynamic>>[
         AppThemeExtension(

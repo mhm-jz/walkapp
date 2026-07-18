@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/design_system/tokens/app_tokens.dart';
 import '../../../core/preferences/app_settings_controller.dart';
 import '../../about/presentation/about_page.dart';
 import '../../achievements/presentation/achievements_page.dart';
@@ -69,7 +68,7 @@ class _AppShellPageState extends State<AppShellPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-      body: _PreservedTabStack(selectedIndex: _selectedIndex, children: _pages),
+      body: IndexedStack(index: _selectedIndex, children: _pages),
       endDrawer: AccountMenu(
         settingsController: widget.settingsController,
         onProfile: () => _openPage(
@@ -111,41 +110,6 @@ class _AppShellPageState extends State<AppShellPage> {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _PreservedTabStack extends StatelessWidget {
-  const _PreservedTabStack({
-    required this.selectedIndex,
-    required this.children,
-  });
-
-  final int selectedIndex;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: <Widget>[
-        for (var index = 0; index < children.length; index++)
-          TickerMode(
-            enabled: index == selectedIndex,
-            child: ExcludeSemantics(
-              excluding: index != selectedIndex,
-              child: IgnorePointer(
-                ignoring: index != selectedIndex,
-                child: AnimatedOpacity(
-                  opacity: index == selectedIndex ? 1 : 0,
-                  duration: AppDurations.fast,
-                  curve: Curves.easeOut,
-                  child: children[index],
-                ),
-              ),
-            ),
-          ),
-      ],
     );
   }
 }

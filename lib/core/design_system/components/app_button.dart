@@ -25,13 +25,9 @@ class AppButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final callback = isLoading ? null : onPressed;
-    final foreground = switch (variant) {
-      AppButtonVariant.secondary => Theme.of(
-        context,
-      ).colorScheme.onSecondaryContainer,
-      AppButtonVariant.destructive => Theme.of(context).colorScheme.onError,
-      _ => null,
-    };
+    final foreground = variant == AppButtonVariant.destructive
+        ? Theme.of(context).colorScheme.onError
+        : null;
     final background = switch (variant) {
       AppButtonVariant.secondary => Theme.of(
         context,
@@ -62,37 +58,20 @@ class AppButton extends StatelessWidget {
           ? null
           : WidgetStatePropertyAll(foreground),
     );
-    final animatedChild = AnimatedSwitcher(
-      duration: AppDurations.fast,
-      child: KeyedSubtree(
-        key: ValueKey<String>(
-          '$label-${icon?.codePoint}-${isLoading ? 'loading' : 'ready'}',
-        ),
-        child: child,
-      ),
-    );
     final button = switch (variant) {
       AppButtonVariant.outlined => OutlinedButton(
         onPressed: callback,
         style: style,
-        child: animatedChild,
+        child: child,
       ),
       AppButtonVariant.text => TextButton(
         onPressed: callback,
         style: style,
-        child: animatedChild,
+        child: child,
       ),
-      _ => FilledButton(
-        onPressed: callback,
-        style: style,
-        child: animatedChild,
-      ),
+      _ => FilledButton(onPressed: callback, style: style, child: child),
     };
-    return Semantics(
-      liveRegion: isLoading,
-      label: isLoading ? '$label, loading' : null,
-      child: SizedBox(width: expanded ? double.infinity : null, child: button),
-    );
+    return SizedBox(width: expanded ? double.infinity : null, child: button);
   }
 }
 

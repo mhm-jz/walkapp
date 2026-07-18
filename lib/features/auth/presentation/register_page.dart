@@ -179,13 +179,14 @@ class _RegisterPageState extends State<RegisterPage> {
                   onPressed: _formController.isLoading ? null : _submit,
                 ),
                 const SizedBox(height: AppSpacing.md),
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  crossAxisAlignment: WrapCrossAlignment.center,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: <Widget>[
-                    Text(
-                      'Already have an account?',
-                      style: TextStyle(color: context.appTheme.textSecondary),
+                    Flexible(
+                      child: Text(
+                        'Already have an account?',
+                        style: TextStyle(color: context.appTheme.textSecondary),
+                      ),
                     ),
                     AppButton(
                       label: 'Log in',

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import 'core/preferences/app_preferences.dart';
 import 'core/preferences/app_settings_controller.dart';
@@ -144,25 +143,6 @@ class _WalkingAppState extends State<WalkingApp> {
         darkTheme: AppTheme.dark,
         themeMode: _settingsController.themeMode,
         themeAnimationDuration: const Duration(milliseconds: 350),
-        builder: (context, child) {
-          final theme = Theme.of(context);
-          final dark = theme.brightness == Brightness.dark;
-          return AnnotatedRegion<SystemUiOverlayStyle>(
-            value: SystemUiOverlayStyle(
-              statusBarColor: Colors.transparent,
-              statusBarIconBrightness: dark
-                  ? Brightness.light
-                  : Brightness.dark,
-              statusBarBrightness: dark ? Brightness.dark : Brightness.light,
-              systemNavigationBarColor: theme.colorScheme.surface,
-              systemNavigationBarDividerColor: theme.colorScheme.outlineVariant,
-              systemNavigationBarIconBrightness: dark
-                  ? Brightness.light
-                  : Brightness.dark,
-            ),
-            child: child ?? const SizedBox.shrink(),
-          );
-        },
         home: OnboardingPage(
           settingsController: _settingsController,
           onGetStarted: _openRegister,
