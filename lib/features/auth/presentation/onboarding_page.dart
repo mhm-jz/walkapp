@@ -1,296 +1,168 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/design_system/components/app_button.dart';
+import '../../../core/design_system/components/app_card.dart';
+import '../../../core/design_system/components/app_feedback.dart';
+import '../../../core/design_system/components/app_fields.dart';
+import '../../../core/design_system/components/app_status_chip.dart';
 import '../../../core/design_system/extensions/app_theme_extension.dart';
 import '../../../core/design_system/tokens/app_tokens.dart';
 import '../../../core/preferences/app_settings_controller.dart';
+import '../../../core/preferences/personalization_options.dart';
+import '../../step_counter/domain/step_tracking_service.dart';
+import '../../step_counter/presentation/step_counter_controller.dart';
+import '../../step_counter/presentation/widgets/daily_goal_sheet.dart';
+import 'onboarding_controller.dart';
 import 'widgets/auth_theme_action.dart';
 
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({
     required this.settingsController,
+    required this.stepController,
     required this.onGetStarted,
-    required this.onLogin,
     super.key,
   });
 
   final AppSettingsController settingsController;
+  final StepCounterController stepController;
   final VoidCallback onGetStarted;
-  final VoidCallback onLogin;
 
   @override
   State<OnboardingPage> createState() => _OnboardingPageState();
 }
 
 class _OnboardingPageState extends State<OnboardingPage> {
-  static const _pages = <_OnboardingContent>[
-    _OnboardingContent(
-      titlePrefix: 'Step by step\nto a ',
-      highlightedTitle: 'better you',
-      description:
-          'Track your steps, stay active and build a healthier lifestyle.',
-      icon: Icons.directions_walk_rounded,
-      semanticsLabel: 'A person walking toward a healthier lifestyle',
-    ),
-    _OnboardingContent(
-      titlePrefix: 'Track every move',
-      description:
-          'See your confirmed steps, activity status and daily progress.',
-      icon: Icons.monitor_heart_outlined,
-      semanticsLabel: 'Health and activity progress',
-    ),
-    _OnboardingContent(
-      titlePrefix: 'Reach your daily goal',
-      description: 'Build consistency and create a healthier daily routine.',
-      icon: Icons.flag_rounded,
-      semanticsLabel: 'A daily walking goal',
-    ),
-  ];
-
-  late final PageController _pageController;
-  int _activePage = 0;
-
-  bool get _isLastPage => _activePage == _pages.length - 1;
+  late final OnboardingController _controller;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
+    _controller = OnboardingController(
+      settingsController: widget.settingsController,
+      stepController: widget.stepController,
+    );
   }
 
   @override
   void dispose() {
-    _pageController.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
-  void _handlePrimaryAction() {
-    if (_isLastPage) {
-      widget.onGetStarted();
+  Future<void> _customGoal() async {
+    final goal = await DailyGoalSheet.show(
+      context,
+      currentGoal: _controller.selectedGoal,
+    );
+    if (goal != null) _controller.selectGoal(goal);
+  }
+
+  Future<void> _primary() async {
+    if (!_controller.isLastStep) {
+      if (!_controller.canContinue) {
+        AppSnackbar.show(
+          context,
+          'Choose at least one interest or No preference.',
+          isError: true,
+        );
+        return;
+      }
+      _controller.next();
       return;
     }
-    _pageController.nextPage(
-      duration: AppDurations.medium,
-      curve: Curves.easeOutCubic,
-    );
+    final completed = await _controller.complete();
+    if (completed && mounted) widget.onGetStarted();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.xl,
-                AppSpacing.sm,
-                AppSpacing.sm,
-                0,
-              ),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: AuthThemeAction(
-                  settingsController: widget.settingsController,
-                ),
-              ),
-            ),
-            Expanded(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 520),
-                  child: PageView.builder(
-                    controller: _pageController,
-                    itemCount: _pages.length,
-                    onPageChanged: (page) {
-                      setState(() => _activePage = page);
-                    },
-                    itemBuilder: (context, index) =>
-                        _OnboardingPageContent(content: _pages[index]),
+    return PopScope(
+      canPop: _controller.step == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) _controller.previous();
+      },
+      child: Scaffold(
+        body: SafeArea(
+          child: AnimatedBuilder(
+            animation: _controller,
+            builder: (context, child) => Column(
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg,
+                    AppSpacing.sm,
+                    AppSpacing.sm,
+                    0,
                   ),
-                ),
-              ),
-            ),
-            _PageIndicator(pageCount: _pages.length, activePage: _activePage),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.xl,
-                AppSpacing.lg,
-                AppSpacing.xl,
-                AppSpacing.lg,
-              ),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 472),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                  child: Row(
                     children: <Widget>[
-                      AppButton(
-                        label: _isLastPage ? 'Get Started' : 'Next',
-                        icon: Icons.arrow_forward_rounded,
-                        expanded: true,
-                        onPressed: _handlePrimaryAction,
+                      if (_controller.step > 0)
+                        AppIconButton(
+                          icon: Icons.arrow_back,
+                          tooltip: 'Previous setup step',
+                          onPressed: _controller.isBusy
+                              ? null
+                              : _controller.previous,
+                        )
+                      else
+                        const SizedBox(width: AppSizes.minTouchTarget),
+                      Expanded(
+                        child: Semantics(
+                          label: 'Setup step ${_controller.step + 1} of 6',
+                          child: LinearProgressIndicator(
+                            value: (_controller.step + 1) / 6,
+                            minHeight: 8,
+                          ),
+                        ),
                       ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: <Widget>[
-                          const Flexible(
-                            child: Text('Already have an account?'),
-                          ),
-                          AppButton(
-                            label: 'Login',
-                            variant: AppButtonVariant.text,
-                            onPressed: widget.onLogin,
-                          ),
-                        ],
+                      const SizedBox(width: AppSpacing.sm),
+                      AuthThemeAction(
+                        settingsController: widget.settingsController,
                       ),
                     ],
                   ),
                 ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _OnboardingPageContent extends StatelessWidget {
-  const _OnboardingPageContent({required this.content});
-
-  final _OnboardingContent content;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.xl,
-          vertical: AppSpacing.sm,
-        ),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: constraints.maxHeight),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 400),
-                child: _WalkingIllustration(
-                  icon: content.icon,
-                  semanticsLabel: content.semanticsLabel,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              Text.rich(
-                TextSpan(
-                  children: <InlineSpan>[
-                    TextSpan(text: content.titlePrefix),
-                    if (content.highlightedTitle != null)
-                      TextSpan(
-                        text: content.highlightedTitle,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.primary,
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: AppDurations.medium,
+                    child: SingleChildScrollView(
+                      key: ValueKey<int>(_controller.step),
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      padding: const EdgeInsets.all(AppSpacing.xl),
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 560),
+                          child: _stepContent(),
                         ),
                       ),
-                  ],
-                ),
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  height: 1.12,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              Text(
-                content.description,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: context.appTheme.textSecondary,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WalkingIllustration extends StatelessWidget {
-  const _WalkingIllustration({
-    required this.icon,
-    required this.semanticsLabel,
-  });
-
-  final IconData icon;
-  final String semanticsLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Semantics(
-      label: semanticsLabel,
-      image: true,
-      child: AspectRatio(
-        aspectRatio: 1.45,
-        child: Container(
-          decoration: BoxDecoration(
-            color: scheme.primaryContainer.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(AppRadii.lg),
-            border: Border.all(color: scheme.outlineVariant),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadii.lg),
-            child: Stack(
-              children: <Widget>[
-                Positioned(
-                  top: -28,
-                  right: -18,
-                  child: Container(
-                    width: 130,
-                    height: 130,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: scheme.secondaryContainer.withValues(alpha: 0.72),
                     ),
                   ),
                 ),
-                Positioned(
-                  left: 24,
-                  bottom: 24,
-                  child: Icon(
-                    Icons.eco_outlined,
-                    size: 62,
-                    color: scheme.primary.withValues(alpha: 0.55),
+                if (_controller.userMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xl,
+                    ),
+                    child: AppErrorView(
+                      message: _controller.userMessage!,
+                      compact: true,
+                    ),
                   ),
-                ),
-                Positioned(
-                  right: 30,
-                  bottom: 24,
-                  child: Icon(
-                    Icons.park_outlined,
-                    size: 72,
-                    color: scheme.primary.withValues(alpha: 0.45),
-                  ),
-                ),
-                Align(
-                  alignment: const Alignment(0, -0.02),
-                  child: AnimatedSwitcher(
-                    duration: AppDurations.medium,
-                    child: Container(
-                      key: ValueKey<IconData>(icon),
-                      width: 112,
-                      height: 112,
-                      decoration: BoxDecoration(
-                        color: scheme.surface,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: scheme.outlineVariant),
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.xl),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 560),
+                      child: AppButton(
+                        label: _controller.isLastStep
+                            ? 'Start Walking'
+                            : 'Continue',
+                        icon: Icons.arrow_forward,
+                        expanded: true,
+                        isLoading: _controller.isBusy,
+                        onPressed: _controller.isBusy ? null : _primary,
                       ),
-                      child: Icon(icon, size: 66, color: scheme.primary),
                     ),
                   ),
                 ),
@@ -301,53 +173,328 @@ class _WalkingIllustration extends StatelessWidget {
       ),
     );
   }
+
+  Widget _stepContent() => switch (_controller.step) {
+    0 => const _IntroStep(),
+    1 => _GoalStep(controller: _controller, onCustom: _customGoal),
+    2 => _InterestsStep(controller: _controller),
+    3 => _CityStep(controller: _controller),
+    4 => _PermissionStep(controller: _controller),
+    _ => _CompletionStep(controller: _controller),
+  };
 }
 
-class _PageIndicator extends StatelessWidget {
-  const _PageIndicator({required this.pageCount, required this.activePage});
+class _IntroStep extends StatelessWidget {
+  const _IntroStep();
 
-  final int pageCount;
-  final int activePage;
+  @override
+  Widget build(BuildContext context) => _StepLayout(
+    icon: Icons.directions_walk_rounded,
+    title: 'Walk toward healthier habits',
+    message:
+        'WalkApp keeps personal health progress first. Campaigns are optional, '
+        'and verified walking may unlock useful points or rewards.',
+    child: const AppCard(
+      child: Column(
+        children: <Widget>[
+          _Pillar(
+            icon: Icons.monitor_heart_outlined,
+            text: 'Track daily walking progress',
+          ),
+          Divider(height: AppSpacing.xl),
+          _Pillar(
+            icon: Icons.flag_outlined,
+            text: 'Build habits with a personal goal',
+          ),
+          Divider(height: AppSpacing.xl),
+          _Pillar(
+            icon: Icons.campaign_outlined,
+            text: 'Join optional campaigns when you choose',
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _GoalStep extends StatelessWidget {
+  const _GoalStep({required this.controller, required this.onCustom});
+  final OnboardingController controller;
+  final VoidCallback onCustom;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Semantics(
-      label: 'Page ${activePage + 1} of $pageCount',
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          for (var index = 0; index < pageCount; index++) ...<Widget>[
-            if (index > 0) const SizedBox(width: AppSpacing.sm),
-            AnimatedContainer(
-              duration: AppDurations.fast,
-              curve: Curves.easeOut,
-              width: index == activePage ? 24 : 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: index == activePage ? scheme.primary : scheme.outline,
-                borderRadius: BorderRadius.circular(AppRadii.pill),
+    const goals = <(int, String)>[
+      (5000, 'A comfortable starting point'),
+      (7500, 'A balanced everyday goal'),
+      (10000, 'A popular active target'),
+      (12000, 'For already active walkers'),
+    ];
+    return _StepLayout(
+      icon: Icons.flag_outlined,
+      title: 'Choose your daily goal',
+      message:
+          'Choose a goal that feels realistic for you. You can change it later.',
+      child: RadioGroup<int>(
+        groupValue: controller.selectedGoal,
+        onChanged: (value) {
+          if (value != null) controller.selectGoal(value);
+        },
+        child: Column(
+          children: <Widget>[
+            for (final goal in goals)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: AppCard(
+                  child: RadioListTile<int>(
+                    value: goal.$1,
+                    title: Text('${goal.$1} steps'),
+                    subtitle: Text(goal.$2),
+                  ),
+                ),
               ),
+            AppButton(
+              label: 'Custom goal',
+              variant: AppButtonVariant.outlined,
+              onPressed: onCustom,
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InterestsStep extends StatelessWidget {
+  const _InterestsStep({required this.controller});
+  final OnboardingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final values = <String>[
+      ...PersonalizationOptions.rewardInterests,
+      PersonalizationOptions.noPreference,
+    ];
+    return _StepLayout(
+      icon: Icons.interests_outlined,
+      title: 'What interests you?',
+      message:
+          'Interests only help order local prototype content. Nothing is hidden.',
+      child: Wrap(
+        spacing: AppSpacing.sm,
+        runSpacing: AppSpacing.sm,
+        children: <Widget>[
+          for (final value in values)
+            Semantics(
+              selected: controller.selectedInterests.contains(value),
+              child: FilterChip(
+                label: Text(value),
+                selected: controller.selectedInterests.contains(value),
+                onSelected: (_) => controller.toggleInterest(value),
+              ),
+            ),
         ],
       ),
     );
   }
 }
 
-class _OnboardingContent {
-  const _OnboardingContent({
-    required this.titlePrefix,
-    required this.description,
-    required this.icon,
-    required this.semanticsLabel,
-    this.highlightedTitle,
-  });
+class _CityStep extends StatelessWidget {
+  const _CityStep({required this.controller});
+  final OnboardingController controller;
 
-  final String titlePrefix;
-  final String? highlightedTitle;
-  final String description;
+  @override
+  Widget build(BuildContext context) => _StepLayout(
+    icon: Icons.location_city_outlined,
+    title: 'Choose your city',
+    message:
+        'Your city may later help us highlight locally available campaigns. '
+        'WalkApp does not use GPS for this choice.',
+    child: AppDropdownField<String>(
+      label: 'City',
+      value: controller.selectedCity,
+      items: <DropdownMenuItem<String>>[
+        for (final city in PersonalizationOptions.cities)
+          DropdownMenuItem<String>(value: city, child: Text(city)),
+      ],
+      onChanged: (value) {
+        if (value != null) controller.selectCity(value);
+      },
+    ),
+  );
+}
+
+class _PermissionStep extends StatelessWidget {
+  const _PermissionStep({required this.controller});
+  final OnboardingController controller;
+
+  @override
+  Widget build(BuildContext context) => _StepLayout(
+    icon: Icons.privacy_tip_outlined,
+    title: 'Activity access',
+    message:
+        'Activity access helps WalkApp detect walking and validate step progress. '
+        'Background tracking lets active sessions continue with the screen off. '
+        'Continuous GPS is not needed.',
+    child: AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          if (controller.permissionStatus != null)
+            AppStatusChip(
+              label: _permissionLabel(controller.permissionStatus!),
+              status:
+                  controller.permissionStatus == ActivityAccessStatus.granted
+                  ? AppStatus.success
+                  : AppStatus.warning,
+            ),
+          if (controller.permissionStatus != null)
+            const SizedBox(height: AppSpacing.md),
+          Text(_permissionMessage(controller.permissionStatus)),
+          const SizedBox(height: AppSpacing.md),
+          AppButton(
+            label: controller.permissionStatus == null
+                ? 'Allow Activity Access'
+                : 'Retry Activity Access',
+            isLoading: controller.isBusy,
+            onPressed: controller.isBusy ? null : controller.requestPermission,
+          ),
+        ],
+      ),
+    ),
+  );
+
+  static String _permissionLabel(ActivityAccessStatus status) =>
+      switch (status) {
+        ActivityAccessStatus.granted => 'Activity access granted',
+        ActivityAccessStatus.denied => 'Activity access not granted',
+        ActivityAccessStatus.permanentlyDenied =>
+          'Enable access in app settings',
+        ActivityAccessStatus.unsupported => 'Activity sensor unavailable',
+      };
+
+  static String _permissionMessage(
+    ActivityAccessStatus? status,
+  ) => switch (status) {
+    null => 'Permission is requested only after you choose the action below.',
+    ActivityAccessStatus.granted =>
+      'You can start tracking from Home when you are ready.',
+    ActivityAccessStatus.denied =>
+      'You can continue, but step tracking needs activity access.',
+    ActivityAccessStatus.permanentlyDenied =>
+      'Open this app’s system settings and enable activity access manually.',
+    ActivityAccessStatus.unsupported =>
+      'This device does not support the prototype activity permission flow.',
+  };
+}
+
+class _CompletionStep extends StatelessWidget {
+  const _CompletionStep({required this.controller});
+  final OnboardingController controller;
+
+  @override
+  Widget build(BuildContext context) => _StepLayout(
+    icon: Icons.check_circle_outline,
+    title: 'You’re ready',
+    message:
+        'Health tracking stays independent. Start it from Home whenever you choose.',
+    child: AppCard(
+      child: Column(
+        children: <Widget>[
+          _Summary(
+            label: 'Daily goal',
+            value: '${controller.selectedGoal} steps',
+          ),
+          const Divider(height: AppSpacing.xl),
+          _Summary(
+            label: 'Interests',
+            value: controller.selectedInterests.isEmpty
+                ? PersonalizationOptions.noPreference
+                : controller.selectedInterests.join(', '),
+          ),
+          const Divider(height: AppSpacing.xl),
+          _Summary(label: 'City', value: controller.selectedCity),
+          const Divider(height: AppSpacing.xl),
+          _Summary(
+            label: 'Activity access',
+            value: controller.permissionStatus == ActivityAccessStatus.granted
+                ? 'Granted'
+                : 'Not granted',
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _StepLayout extends StatelessWidget {
+  const _StepLayout({
+    required this.icon,
+    required this.title,
+    required this.message,
+    required this.child,
+  });
   final IconData icon;
-  final String semanticsLabel;
+  final String title;
+  final String message;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: <Widget>[
+      Icon(icon, size: 64, color: Theme.of(context).colorScheme.primary),
+      const SizedBox(height: AppSpacing.lg),
+      Text(
+        title,
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.headlineMedium,
+      ),
+      const SizedBox(height: AppSpacing.sm),
+      Text(
+        message,
+        textAlign: TextAlign.center,
+        style: Theme.of(
+          context,
+        ).textTheme.bodyLarge?.copyWith(color: context.appTheme.textSecondary),
+      ),
+      const SizedBox(height: AppSpacing.xl),
+      child,
+    ],
+  );
+}
+
+class _Pillar extends StatelessWidget {
+  const _Pillar({required this.icon, required this.text});
+  final IconData icon;
+  final String text;
+  @override
+  Widget build(BuildContext context) => Row(
+    children: <Widget>[
+      Icon(icon),
+      const SizedBox(width: AppSpacing.md),
+      Expanded(child: Text(text)),
+    ],
+  );
+}
+
+class _Summary extends StatelessWidget {
+  const _Summary({required this.label, required this.value});
+  final String label;
+  final String value;
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: <Widget>[
+      Expanded(child: Text(label)),
+      const SizedBox(width: AppSpacing.md),
+      Flexible(
+        child: Text(
+          value,
+          textAlign: TextAlign.end,
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+      ),
+    ],
+  );
 }

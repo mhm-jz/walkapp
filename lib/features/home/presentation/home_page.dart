@@ -212,10 +212,13 @@ class _HomePageState extends State<HomePage> {
                             animation: Listenable.merge(<Listenable>[
                               widget.campaignController,
                               widget.rewardsController,
+                              widget.settingsController,
                             ]),
                             builder: (context, child) => _CampaignOverview(
                               campaignController: widget.campaignController,
                               rewardsController: widget.rewardsController,
+                              rewardInterests:
+                                  widget.settingsController.rewardInterests,
                               onContinue: _openActiveCampaign,
                               onExplore: widget.onOpenCampaigns,
                               onViewCampaign: _openCampaign,
@@ -528,6 +531,7 @@ class _CampaignOverview extends StatelessWidget {
   const _CampaignOverview({
     required this.campaignController,
     required this.rewardsController,
+    required this.rewardInterests,
     required this.onContinue,
     required this.onExplore,
     required this.onViewCampaign,
@@ -538,6 +542,7 @@ class _CampaignOverview extends StatelessWidget {
 
   final CampaignEnrollmentController campaignController;
   final RewardsController rewardsController;
+  final List<String> rewardInterests;
   final VoidCallback onContinue;
   final VoidCallback onExplore;
   final ValueChanged<Campaign> onViewCampaign;
@@ -629,8 +634,30 @@ class _CampaignOverview extends StatelessWidget {
               enrollment?.status != CampaignEnrollmentStatus.completed;
         })
         .toList(growable: false);
+    final hasPreference =
+        rewardInterests.isNotEmpty &&
+        !rewardInterests.contains('No preference');
+    if (hasPreference) {
+      for (final campaign in eligible) {
+        if (campaign.isFeatured &&
+            rewardInterests.contains(
+              campaignCategoryLabel(campaign.category),
+            )) {
+          return campaign;
+        }
+      }
+    }
     for (final campaign in eligible) {
       if (campaign.isFeatured) return campaign;
+    }
+    if (hasPreference) {
+      for (final campaign in eligible) {
+        if (rewardInterests.contains(
+          campaignCategoryLabel(campaign.category),
+        )) {
+          return campaign;
+        }
+      }
     }
     return eligible.firstOrNull;
   }

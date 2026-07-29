@@ -13,7 +13,8 @@ void startStepTrackingCallback() {
   FlutterForegroundTask.setTaskHandler(StepTaskHandler());
 }
 
-final class StepForegroundService implements StepTrackingService {
+final class StepForegroundService
+    implements StepTrackingService, ActivityAccessRequester {
   StepForegroundService();
 
   bool _initialized = false;
@@ -133,6 +134,23 @@ final class StepForegroundService implements StepTrackingService {
   }
 
   @override
+  Future<ActivityAccessStatus> requestActivityAccess() async {
+    if (!Platform.isAndroid) return ActivityAccessStatus.unsupported;
+    var permission = await FlutterActivityRecognition.instance
+        .checkPermission();
+    if (permission == ActivityPermission.DENIED) {
+      permission = await FlutterActivityRecognition.instance
+          .requestPermission();
+    }
+    return switch (permission) {
+      ActivityPermission.GRANTED => ActivityAccessStatus.granted,
+      ActivityPermission.PERMANENTLY_DENIED =>
+        ActivityAccessStatus.permanentlyDenied,
+      _ => ActivityAccessStatus.denied,
+    };
+  }
+
+  @override
   void requestSnapshot() {
     FlutterForegroundTask.sendDataToTask(<String, dynamic>{
       'command': 'get_snapshot',
@@ -157,21 +175,13 @@ final class StepForegroundService implements StepTrackingService {
   }
 
   Future<void> _ensurePermissions() async {
-    var activityPermission = await FlutterActivityRecognition.instance
-        .checkPermission();
-
-    if (activityPermission == ActivityPermission.PERMANENTLY_DENIED) {
+    final activityPermission = await requestActivityAccess();
+    if (activityPermission == ActivityAccessStatus.permanentlyDenied) {
       throw StateError(
         'Activity Recognition permission is permanently denied.',
       );
     }
-
-    if (activityPermission == ActivityPermission.DENIED) {
-      activityPermission = await FlutterActivityRecognition.instance
-          .requestPermission();
-    }
-
-    if (activityPermission != ActivityPermission.GRANTED) {
+    if (activityPermission != ActivityAccessStatus.granted) {
       throw StateError('Activity Recognition permission was not granted.');
     }
 

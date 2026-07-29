@@ -6,6 +6,7 @@ import '../../../core/design_system/components/app_feedback.dart';
 import '../../../core/design_system/components/app_status_chip.dart';
 import '../../../core/design_system/extensions/app_theme_extension.dart';
 import '../../../core/design_system/tokens/app_tokens.dart';
+import '../../../core/preferences/app_settings_controller.dart';
 import '../../campaigns/domain/campaign.dart';
 import '../../campaigns/domain/campaign_enrollment.dart';
 import '../application/rewards_controller.dart';
@@ -18,8 +19,13 @@ import 'reward_formatters.dart';
 import 'wallet_activity_page.dart';
 
 class RewardsPage extends StatefulWidget {
-  const RewardsPage({required this.controller, super.key});
+  const RewardsPage({
+    required this.controller,
+    this.settingsController,
+    super.key,
+  });
   final RewardsController controller;
+  final AppSettingsController? settingsController;
 
   @override
   State<RewardsPage> createState() => _RewardsPageState();
@@ -30,7 +36,19 @@ class _RewardsPageState extends State<RewardsPage> {
 
   List<Reward> _filteredRewards() {
     final balance = widget.controller.wallet.balance;
-    return widget.controller.catalog
+    final interests = widget.settingsController?.rewardInterests ?? const [];
+    final ordered = widget.controller.catalog.indexed.toList()
+      ..sort((a, b) {
+        if (interests.isEmpty || interests.contains('No preference')) {
+          return a.$1.compareTo(b.$1);
+        }
+        final aMatches = interests.contains(a.$2.category);
+        final bMatches = interests.contains(b.$2.category);
+        if (aMatches == bMatches) return a.$1.compareTo(b.$1);
+        return aMatches ? -1 : 1;
+      });
+    return ordered
+        .map((item) => item.$2)
         .where((reward) {
           if (_filter == 'All') return true;
           if (_filter == 'Affordable') {

@@ -150,14 +150,6 @@ class _WalkingAppState extends State<WalkingApp> {
     );
   }
 
-  void _openRegister() {
-    _navigatorKey.currentState?.push(_routeTo(_registerPage()));
-  }
-
-  void _openLogin() {
-    _navigatorKey.currentState?.push(_routeTo(_loginPage()));
-  }
-
   void _replaceWithRegister() {
     _navigatorKey.currentState?.pushReplacement(_routeTo(_registerPage()));
   }
@@ -185,11 +177,13 @@ class _WalkingAppState extends State<WalkingApp> {
         darkTheme: AppTheme.dark,
         themeMode: _settingsController.themeMode,
         themeAnimationDuration: const Duration(milliseconds: 350),
-        home: OnboardingPage(
-          settingsController: _settingsController,
-          onGetStarted: _openRegister,
-          onLogin: _openLogin,
-        ),
+        home: _settingsController.onboardingCompleted
+            ? _loginPage()
+            : OnboardingPage(
+                settingsController: _settingsController,
+                stepController: widget.controller,
+                onGetStarted: _replaceWithRegister,
+              ),
       ),
     );
   }

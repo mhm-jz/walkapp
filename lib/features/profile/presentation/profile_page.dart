@@ -7,6 +7,8 @@ import '../../../core/design_system/components/app_fields.dart';
 import '../../../core/design_system/extensions/app_theme_extension.dart';
 import '../../../core/design_system/tokens/app_tokens.dart';
 import '../../../core/preferences/app_settings_controller.dart';
+import '../../../core/preferences/personalization_options.dart';
+import '../../step_counter/presentation/widgets/daily_goal_sheet.dart';
 import 'account_menu.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -100,6 +102,43 @@ class _ProfilePageState extends State<ProfilePage> {
     final at = value.indexOf('@');
     final dot = value.lastIndexOf('.');
     return at > 0 && dot > at + 1 && dot < value.length - 1;
+  }
+
+  Future<void> _editGoal() async {
+    final goal = await DailyGoalSheet.show(
+      context,
+      currentGoal: widget.settingsController.dailyGoal,
+    );
+    if (goal == null || !mounted) return;
+    await widget.settingsController.setDailyGoal(goal);
+    if (mounted) AppSnackbar.show(context, 'Daily goal updated');
+  }
+
+  Future<void> _setCity(String? city) async {
+    if (city == null) return;
+    await widget.settingsController.setPersonalization(
+      rewardInterests: widget.settingsController.rewardInterests,
+      selectedCity: city,
+    );
+    if (mounted) AppSnackbar.show(context, 'City updated');
+  }
+
+  Future<void> _toggleInterest(String value) async {
+    final selected = widget.settingsController.rewardInterests.toSet();
+    if (value == PersonalizationOptions.noPreference) {
+      selected
+        ..clear()
+        ..add(value);
+    } else {
+      selected.remove(PersonalizationOptions.noPreference);
+      selected.contains(value) ? selected.remove(value) : selected.add(value);
+      if (selected.isEmpty) selected.add(PersonalizationOptions.noPreference);
+    }
+    await widget.settingsController.setPersonalization(
+      rewardInterests: selected.toList(growable: false),
+      selectedCity: widget.settingsController.selectedCity,
+    );
+    if (mounted) AppSnackbar.show(context, 'Reward interests updated');
   }
 
   @override
@@ -232,6 +271,76 @@ class _ProfilePageState extends State<ProfilePage> {
                                 email: widget.settingsController.profileEmail,
                                 onEdit: () => setState(() => _isEditing = true),
                               ),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    AnimatedBuilder(
+                      animation: widget.settingsController,
+                      builder: (context, child) => AppCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: <Widget>[
+                            Text(
+                              'Personalization',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            AppDropdownField<String>(
+                              label: 'City',
+                              value: widget.settingsController.selectedCity,
+                              items: <DropdownMenuItem<String>>[
+                                for (final city
+                                    in PersonalizationOptions.cities)
+                                  DropdownMenuItem<String>(
+                                    value: city,
+                                    child: Text(city),
+                                  ),
+                              ],
+                              onChanged: _setCity,
+                            ),
+                            const SizedBox(height: AppSpacing.lg),
+                            Text(
+                              'Reward interests',
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            Wrap(
+                              spacing: AppSpacing.sm,
+                              runSpacing: AppSpacing.sm,
+                              children: <Widget>[
+                                for (final interest in <String>[
+                                  ...PersonalizationOptions.rewardInterests,
+                                  PersonalizationOptions.noPreference,
+                                ])
+                                  FilterChip(
+                                    label: Text(interest),
+                                    selected: widget
+                                        .settingsController
+                                        .rewardInterests
+                                        .contains(interest),
+                                    onSelected: (_) =>
+                                        _toggleInterest(interest),
+                                  ),
+                              ],
+                            ),
+                            const Divider(height: AppSpacing.xl),
+                            Row(
+                              children: <Widget>[
+                                Expanded(
+                                  child: Text(
+                                    'Daily goal: '
+                                    '${widget.settingsController.dailyGoal} steps',
+                                  ),
+                                ),
+                                AppIconButton(
+                                  icon: Icons.edit_outlined,
+                                  tooltip: 'Edit daily goal',
+                                  onPressed: _editGoal,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],

@@ -91,7 +91,10 @@ class _AppShellPageState extends State<AppShellPage> {
         settingsController: widget.settingsController,
         rewardsController: _rewardsController,
       ),
-      RewardsPage(controller: _rewardsController),
+      RewardsPage(
+        controller: _rewardsController,
+        settingsController: widget.settingsController,
+      ),
       ProgressPage(
         controller: widget.stepController,
         settingsController: widget.settingsController,

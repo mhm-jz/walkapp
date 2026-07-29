@@ -100,6 +100,16 @@ final class StepCounterController extends ChangeNotifier {
     }
   }
 
+  Future<ActivityAccessStatus> requestActivityAccess() {
+    final requester = trackingService;
+    if (requester is! ActivityAccessRequester) {
+      return Future<ActivityAccessStatus>.value(
+        ActivityAccessStatus.unsupported,
+      );
+    }
+    return (requester as ActivityAccessRequester).requestActivityAccess();
+  }
+
   Future<void> reset() async {
     if (_isBusy) return;
 

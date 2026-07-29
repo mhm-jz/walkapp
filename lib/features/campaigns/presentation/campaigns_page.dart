@@ -58,9 +58,24 @@ class _CampaignsPageState extends State<CampaignsPage> {
     setState(() => _viewState = _CampaignsViewState.loading);
     try {
       final campaigns = await widget.repository.getCampaigns();
+      final interests = widget.settingsController.rewardInterests;
+      final ordered = campaigns.indexed.toList()
+        ..sort((a, b) {
+          if (interests.isEmpty || interests.contains('No preference')) {
+            return a.$1.compareTo(b.$1);
+          }
+          final aMatches = interests.contains(
+            campaignCategoryLabel(a.$2.category),
+          );
+          final bMatches = interests.contains(
+            campaignCategoryLabel(b.$2.category),
+          );
+          if (aMatches == bMatches) return a.$1.compareTo(b.$1);
+          return aMatches ? -1 : 1;
+        });
       if (!mounted) return;
       setState(() {
-        _campaigns = campaigns;
+        _campaigns = ordered.map((item) => item.$2).toList(growable: false);
         _viewState = campaigns.isEmpty
             ? _CampaignsViewState.empty
             : _CampaignsViewState.content;

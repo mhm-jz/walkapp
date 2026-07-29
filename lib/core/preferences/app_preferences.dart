@@ -10,6 +10,9 @@ final class AppPreferences {
   static const _dailyGoalKey = 'daily_goal';
   static const _profileNameKey = 'profile_name';
   static const _profileEmailKey = 'profile_email';
+  static const _onboardingCompletedKey = 'onboarding_completed';
+  static const _rewardInterestsKey = 'reward_interests';
+  static const _selectedCityKey = 'selected_city';
   static const defaultDailyGoal = 10000;
 
   final Box<dynamic> _box;
@@ -39,6 +42,23 @@ final class AppPreferences {
   String get profileEmail =>
       _box.get(_profileEmailKey)?.toString().trim() ?? '';
 
+  bool get onboardingCompleted {
+    final stored = _box.get(_onboardingCompletedKey);
+    if (stored is bool) return stored;
+    return _box.containsKey(_dailyGoalKey) ||
+        _box.containsKey(_profileNameKey) ||
+        _box.containsKey(_profileEmailKey);
+  }
+
+  List<String> get rewardInterests {
+    final raw = _box.get(_rewardInterestsKey);
+    if (raw is! List) return const <String>[];
+    return raw.map((item) => item.toString()).toList(growable: false);
+  }
+
+  String get selectedCity =>
+      _box.get(_selectedCityKey)?.toString().trim() ?? 'Prefer not to say';
+
   Future<void> setThemeMode(ThemeMode value) =>
       _box.put(_themeModeKey, value.name);
 
@@ -51,4 +71,15 @@ final class AppPreferences {
       _profileEmailKey: email.trim(),
     });
   }
+
+  Future<void> setPersonalization({
+    required List<String> rewardInterests,
+    required String selectedCity,
+  }) => _box.putAll(<String, Object>{
+    _rewardInterestsKey: rewardInterests,
+    _selectedCityKey: selectedCity,
+  });
+
+  Future<void> setOnboardingCompleted(bool value) =>
+      _box.put(_onboardingCompletedKey, value);
 }
