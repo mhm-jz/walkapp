@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/design_system/components/app_card.dart';
+import '../../../core/design_system/components/app_button.dart';
 import '../../../core/design_system/components/app_feedback.dart';
 import '../../../core/design_system/components/app_status_chip.dart';
 import '../../../core/design_system/extensions/app_theme_extension.dart';
 import '../../../core/design_system/tokens/app_tokens.dart';
+import '../../../core/preferences/app_settings_controller.dart';
+import '../application/campaign_enrollment_controller.dart';
 import '../data/campaign_repository.dart';
 import '../domain/campaign.dart';
 import '../domain/campaign_category.dart';
 import '../domain/campaign_status.dart';
+import '../domain/campaign_enrollment.dart';
+import '../domain/campaign_type.dart';
+import 'active_campaign_page.dart';
 import 'campaign_details_page.dart';
 import 'campaign_formatters.dart';
 import 'widgets/campaign_cards.dart';
@@ -18,9 +24,16 @@ enum _CampaignsViewState { loading, content, empty, error }
 enum _StatusFilter { all, available, endingSoon, upcoming }
 
 class CampaignsPage extends StatefulWidget {
-  const CampaignsPage({required this.repository, super.key});
+  const CampaignsPage({
+    required this.repository,
+    required this.enrollmentController,
+    required this.settingsController,
+    super.key,
+  });
 
   final CampaignRepository repository;
+  final CampaignEnrollmentController enrollmentController;
+  final AppSettingsController settingsController;
 
   @override
   State<CampaignsPage> createState() => _CampaignsPageState();
@@ -58,7 +71,20 @@ class _CampaignsPageState extends State<CampaignsPage> {
   void _openDetails(Campaign campaign) {
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (context) => CampaignDetailsPage(campaign: campaign),
+        builder: (context) => CampaignDetailsPage(
+          campaign: campaign,
+          enrollmentController: widget.enrollmentController,
+          settingsController: widget.settingsController,
+        ),
+      ),
+    );
+  }
+
+  void _openActiveCampaign() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (context) =>
+            ActiveCampaignPage(controller: widget.enrollmentController),
       ),
     );
   }
@@ -140,7 +166,7 @@ class _CampaignsPageState extends State<CampaignsPage> {
   }
 
   Widget _buildBody() {
-    return switch (_viewState) {
+    final content = switch (_viewState) {
       _CampaignsViewState.loading => const Padding(
         padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
         child: Center(child: AppLoadingIndicator(label: 'Loading campaigns')),
@@ -158,6 +184,7 @@ class _CampaignsPageState extends State<CampaignsPage> {
       ),
       _CampaignsViewState.content => _CampaignContent(
         campaigns: _filteredCampaigns,
+        enrollmentController: widget.enrollmentController,
         statusFilter: _statusFilter,
         categoryFilter: _categoryFilter,
         onStatusChanged: (value) => setState(() => _statusFilter = value),
@@ -165,12 +192,52 @@ class _CampaignsPageState extends State<CampaignsPage> {
         onView: _openDetails,
       ),
     };
+    return AnimatedBuilder(
+      animation: widget.enrollmentController,
+      builder: (context, child) {
+        final enrollment = widget.enrollmentController.activeEnrollment;
+        final campaign = enrollment == null
+            ? null
+            : widget.enrollmentController.campaignFor(enrollment);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            if (enrollment != null && campaign != null) ...<Widget>[
+              _ActiveCampaignCard(
+                campaign: campaign,
+                enrollment: enrollment,
+                controller: widget.enrollmentController,
+                onContinue: _openActiveCampaign,
+              ),
+              const SizedBox(height: AppSpacing.xl),
+            ],
+            if (widget.enrollmentController.userMessage != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                child: AppErrorView(
+                  message:
+                      widget.enrollmentController.userMessage ??
+                      'Enrollment state could not be loaded.',
+                  onRetry:
+                      widget.enrollmentController.viewState ==
+                          CampaignEnrollmentViewState.error
+                      ? widget.enrollmentController.initialize
+                      : null,
+                  compact: true,
+                ),
+              ),
+            content,
+          ],
+        );
+      },
+    );
   }
 }
 
 class _CampaignContent extends StatelessWidget {
   const _CampaignContent({
     required this.campaigns,
+    required this.enrollmentController,
     required this.statusFilter,
     required this.categoryFilter,
     required this.onStatusChanged,
@@ -179,6 +246,7 @@ class _CampaignContent extends StatelessWidget {
   });
 
   final List<Campaign> campaigns;
+  final CampaignEnrollmentController enrollmentController;
   final _StatusFilter statusFilter;
   final CampaignCategory? categoryFilter;
   final ValueChanged<_StatusFilter> onStatusChanged;
@@ -210,6 +278,9 @@ class _CampaignContent extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           FeaturedCampaignCard(
             campaign: featured,
+            enrollmentStatus: enrollmentController
+                .enrollmentFor(featured.id)
+                ?.status,
             onView: () => onView(featured!),
           ),
           const SizedBox(height: AppSpacing.xl),
@@ -242,6 +313,9 @@ class _CampaignContent extends StatelessWidget {
           ) ...<Widget>[
             CampaignCard(
               campaign: listedCampaigns[index],
+              enrollmentStatus: enrollmentController
+                  .enrollmentFor(listedCampaigns[index].id)
+                  ?.status,
               onView: () => onView(listedCampaigns[index]),
             ),
             if (index != listedCampaigns.length - 1)
@@ -249,6 +323,76 @@ class _CampaignContent extends StatelessWidget {
           ],
         ],
       ],
+    );
+  }
+}
+
+class _ActiveCampaignCard extends StatelessWidget {
+  const _ActiveCampaignCard({
+    required this.campaign,
+    required this.enrollment,
+    required this.controller,
+    required this.onContinue,
+  });
+
+  final Campaign campaign;
+  final CampaignEnrollment enrollment;
+  final CampaignEnrollmentController controller;
+  final VoidCallback onContinue;
+
+  @override
+  Widget build(BuildContext context) {
+    final stepTarget = campaign.type == CampaignType.stepTarget;
+    final progress = controller.progressFor(campaign, enrollment);
+    final progressText = stepTarget
+        ? '${formatCampaignNumber(enrollment.totalEligibleSteps)} / '
+              '${formatCampaignNumber(campaign.targetSteps ?? 0)} campaign steps'
+        : '${controller.completedGoalDays(enrollment)} / '
+              '${campaign.requiredGoalDays} goal days';
+    return AppCard(
+      color: Theme.of(context).colorScheme.primaryContainer,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              const Icon(Icons.directions_walk),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  'Active Campaign',
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+              ),
+              const AppStatusChip(
+                label: 'Active',
+                status: AppStatus.info,
+                icon: Icons.sensors,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(campaign.title, style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: AppSpacing.sm),
+          Semantics(
+            label: progressText,
+            child: LinearProgressIndicator(value: progress, minHeight: 10),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(progressText),
+          const SizedBox(height: AppSpacing.xs),
+          Text(campaignTiming(campaign, DateTime.now())),
+          const SizedBox(height: AppSpacing.md),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: AppButton(
+              label: 'Continue Campaign',
+              icon: Icons.arrow_forward,
+              onPressed: onContinue,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

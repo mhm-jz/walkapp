@@ -6,6 +6,7 @@ import '../../../../core/design_system/extensions/app_theme_extension.dart';
 import '../../../../core/design_system/tokens/app_tokens.dart';
 import '../../domain/campaign.dart';
 import '../../domain/campaign_status.dart';
+import '../../domain/campaign_enrollment_status.dart';
 import '../campaign_formatters.dart';
 import 'campaign_shared_widgets.dart';
 
@@ -13,11 +14,13 @@ class FeaturedCampaignCard extends StatelessWidget {
   const FeaturedCampaignCard({
     required this.campaign,
     required this.onView,
+    this.enrollmentStatus,
     super.key,
   });
 
   final Campaign campaign;
   final VoidCallback onView;
+  final CampaignEnrollmentStatus? enrollmentStatus;
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +86,12 @@ class FeaturedCampaignCard extends StatelessWidget {
           Align(
             alignment: Alignment.centerLeft,
             child: AppButton(
-              label: 'View Campaign',
+              label: switch (enrollmentStatus) {
+                CampaignEnrollmentStatus.active => 'View Progress',
+                CampaignEnrollmentStatus.completed => 'Completed',
+                CampaignEnrollmentStatus.expired => 'Campaign ended',
+                _ => 'View Campaign',
+              },
               icon: Icons.arrow_forward,
               onPressed: onView,
             ),
@@ -95,10 +103,16 @@ class FeaturedCampaignCard extends StatelessWidget {
 }
 
 class CampaignCard extends StatelessWidget {
-  const CampaignCard({required this.campaign, required this.onView, super.key});
+  const CampaignCard({
+    required this.campaign,
+    required this.onView,
+    this.enrollmentStatus,
+    super.key,
+  });
 
   final Campaign campaign;
   final VoidCallback onView;
+  final CampaignEnrollmentStatus? enrollmentStatus;
 
   @override
   Widget build(BuildContext context) {
@@ -182,7 +196,12 @@ class CampaignCard extends StatelessWidget {
           Align(
             alignment: Alignment.centerLeft,
             child: AppButton(
-              label: 'View details',
+              label: switch (enrollmentStatus) {
+                CampaignEnrollmentStatus.active => 'View Progress',
+                CampaignEnrollmentStatus.completed => 'Completed',
+                CampaignEnrollmentStatus.expired => 'Campaign ended',
+                _ => 'View details',
+              },
               icon: Icons.arrow_forward,
               variant: AppButtonVariant.outlined,
               onPressed: onView,

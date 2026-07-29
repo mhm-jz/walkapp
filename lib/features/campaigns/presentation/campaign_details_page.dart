@@ -5,32 +5,144 @@ import '../../../core/design_system/components/app_card.dart';
 import '../../../core/design_system/components/app_feedback.dart';
 import '../../../core/design_system/extensions/app_theme_extension.dart';
 import '../../../core/design_system/tokens/app_tokens.dart';
+import '../../../core/preferences/app_settings_controller.dart';
+import '../application/campaign_enrollment_controller.dart';
 import '../domain/campaign.dart';
+import '../domain/campaign_enrollment_status.dart';
 import '../domain/campaign_status.dart';
 import '../domain/campaign_type.dart';
 import 'campaign_formatters.dart';
+import 'active_campaign_page.dart';
 import 'widgets/campaign_shared_widgets.dart';
 
 class CampaignDetailsPage extends StatelessWidget {
-  const CampaignDetailsPage({required this.campaign, super.key});
+  const CampaignDetailsPage({
+    required this.campaign,
+    required this.enrollmentController,
+    required this.settingsController,
+    super.key,
+  });
 
   final Campaign campaign;
+  final CampaignEnrollmentController enrollmentController;
+  final AppSettingsController settingsController;
 
-  Future<void> _showEnrollmentPreview(BuildContext context) {
-    return AppDialog.show<void>(
+  void _openActiveCampaign(BuildContext context) {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (context) =>
+            ActiveCampaignPage(controller: enrollmentController),
+      ),
+    );
+  }
+
+  Future<void> _showActiveConflict(BuildContext context) async {
+    final viewActive = await AppDialog.show<bool>(
       context,
-      title: 'Joining is coming next',
+      title: 'You already have an active campaign',
       content: const Text(
-        'Campaign joining will be enabled in the next MVP phase.\n\n'
-        'No campaign has been joined and no progress has been started.',
+        'Complete or leave your current campaign before joining another one.',
       ),
       actions: <Widget>[
         AppButton(
-          label: 'Got it',
-          onPressed: () => Navigator.of(context).pop(),
+          label: 'Keep current campaign',
+          variant: AppButtonVariant.text,
+          onPressed: () => Navigator.of(context).pop(false),
+        ),
+        AppButton(
+          label: 'View active campaign',
+          onPressed: () => Navigator.of(context).pop(true),
         ),
       ],
     );
+    if (viewActive == true && context.mounted) _openActiveCampaign(context);
+  }
+
+  Future<void> _confirmJoin(BuildContext context) async {
+    if (enrollmentController.activeEnrollment != null) {
+      await _showActiveConflict(context);
+      return;
+    }
+    final capturedGoal = settingsController.dailyGoal;
+    final requirement = campaign.type == CampaignType.stepTarget
+        ? '${formatCampaignNumber(campaign.targetSteps ?? 0)} confirmed campaign steps'
+        : '${campaign.requiredGoalDays} separate days reaching the captured '
+              '${formatCampaignNumber(capturedGoal)}-step goal';
+    final confirmed = await AppDialog.show<bool>(
+      context,
+      title: 'Join ${campaign.title}?',
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text('Requirement: $requirement'),
+            const SizedBox(height: AppSpacing.sm),
+            Text('Ends: ${campaignDate(campaign.endAt)}'),
+            const SizedBox(height: AppSpacing.sm),
+            Text('Reward preview: ${campaign.reward.discountLabel}'),
+            const SizedBox(height: AppSpacing.md),
+            const Text(
+              'Progress starts from zero after joining. Only confirmed steps '
+              'recorded after joining count. Normal health tracking continues.',
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            const Text('Only one campaign can be active at a time.'),
+            if (campaign.type == CampaignType.dailyGoalConsistency) ...<Widget>[
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Your ${formatCampaignNumber(capturedGoal)}-step daily goal is '
+                'captured now and will not change for this campaign.',
+              ),
+            ],
+            const SizedBox(height: AppSpacing.sm),
+            const Text(
+              'Leaving removes this progress from active use. No points or '
+              'coupon are issued in this MVP phase.',
+            ),
+          ],
+        ),
+      ),
+      actions: <Widget>[
+        AppButton(
+          label: 'Cancel',
+          variant: AppButtonVariant.text,
+          onPressed: () => Navigator.of(context).pop(false),
+        ),
+        AppButton(
+          label: 'Join Campaign',
+          onPressed: () => Navigator.of(context).pop(true),
+        ),
+      ],
+    );
+    if (confirmed != true || !context.mounted) return;
+    final result = await enrollmentController.join(
+      campaign,
+      currentDailyGoal: capturedGoal,
+    );
+    if (!context.mounted) return;
+    switch (result) {
+      case CampaignJoinResult.joined:
+        AppSnackbar.show(context, 'Campaign joined. Progress starts at zero.');
+        _openActiveCampaign(context);
+      case CampaignJoinResult.activeConflict:
+        await _showActiveConflict(context);
+      case CampaignJoinResult.unavailable:
+        AppSnackbar.show(
+          context,
+          'This campaign is no longer available to join.',
+          isError: true,
+        );
+      case CampaignJoinResult.alreadyCompleted:
+        AppSnackbar.show(context, 'You already completed this campaign.');
+      case CampaignJoinResult.persistenceFailed:
+        AppSnackbar.show(
+          context,
+          enrollmentController.userMessage ??
+              'The campaign could not be joined. Please try again.',
+          isError: true,
+        );
+    }
   }
 
   @override
@@ -38,89 +150,123 @@ class CampaignDetailsPage extends StatelessWidget {
     final now = DateTime.now();
     final status = campaign.statusAt(now);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Campaign details')),
-      body: SafeArea(
-        top: false,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            AppSpacing.lg,
-            AppSpacing.lg,
-            AppSpacing.xxl,
-          ),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: AppSizes.contentMaxWidth,
+    return AnimatedBuilder(
+      animation: enrollmentController,
+      builder: (context, child) {
+        final enrollment = enrollmentController.enrollmentFor(campaign.id);
+        final isThisActive =
+            enrollment?.status == CampaignEnrollmentStatus.active;
+        final completed =
+            enrollment?.status == CampaignEnrollmentStatus.completed;
+        final expiredEnrollment =
+            enrollment?.status == CampaignEnrollmentStatus.expired;
+        final anotherActive =
+            enrollmentController.activeEnrollment != null && !isThisActive;
+        return Scaffold(
+          appBar: AppBar(title: const Text('Campaign details')),
+          body: SafeArea(
+            top: false,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.lg,
+                AppSpacing.lg,
+                AppSpacing.xxl,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  _CampaignIdentity(campaign: campaign, status: status),
-                  const SizedBox(height: AppSpacing.xl),
-                  _CampaignSummary(campaign: campaign),
-                  const SizedBox(height: AppSpacing.xl),
-                  const _SectionHeading(title: 'How it works'),
-                  const SizedBox(height: AppSpacing.sm),
-                  const AppCard(
-                    child: Column(
-                      children: <Widget>[
-                        _NumberedStep(number: 1, text: 'Join the campaign'),
-                        Divider(height: AppSpacing.xl),
-                        _NumberedStep(
-                          number: 2,
-                          text: 'Walk during the campaign period',
-                        ),
-                        Divider(height: AppSpacing.xl),
-                        _NumberedStep(
-                          number: 3,
-                          text: 'Complete the goal and unlock the reward',
-                        ),
-                      ],
-                    ),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: AppSizes.contentMaxWidth,
                   ),
-                  const SizedBox(height: AppSpacing.xl),
-                  const _SectionHeading(title: 'Goal rules'),
-                  const SizedBox(height: AppSpacing.sm),
-                  AppCard(child: _GoalRules(campaign: campaign)),
-                  const SizedBox(height: AppSpacing.xl),
-                  const _SectionHeading(title: 'Reward terms'),
-                  const SizedBox(height: AppSpacing.sm),
-                  CampaignRewardPreview(reward: campaign.reward),
-                  const SizedBox(height: AppSpacing.md),
-                  AppCard(child: _RewardTerms(campaign: campaign)),
-                  const SizedBox(height: AppSpacing.xl),
-                  const AppCard(child: _BehaviorExplanation()),
-                  const SizedBox(height: AppSpacing.xl),
-                  AppButton(
-                    label: _actionLabel(status),
-                    icon:
-                        status == CampaignStatus.available ||
-                            status == CampaignStatus.endingSoon
-                        ? Icons.add_circle_outline
-                        : Icons.lock_clock_outlined,
-                    expanded: true,
-                    onPressed:
-                        status == CampaignStatus.available ||
-                            status == CampaignStatus.endingSoon
-                        ? () => _showEnrollmentPreview(context)
-                        : null,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      _CampaignIdentity(campaign: campaign, status: status),
+                      const SizedBox(height: AppSpacing.xl),
+                      _CampaignSummary(campaign: campaign),
+                      const SizedBox(height: AppSpacing.xl),
+                      const _SectionHeading(title: 'How it works'),
+                      const SizedBox(height: AppSpacing.sm),
+                      const AppCard(
+                        child: Column(
+                          children: <Widget>[
+                            _NumberedStep(number: 1, text: 'Join the campaign'),
+                            Divider(height: AppSpacing.xl),
+                            _NumberedStep(
+                              number: 2,
+                              text: 'Walk during the campaign period',
+                            ),
+                            Divider(height: AppSpacing.xl),
+                            _NumberedStep(
+                              number: 3,
+                              text: 'Complete the goal and unlock the reward',
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                      const _SectionHeading(title: 'Goal rules'),
+                      const SizedBox(height: AppSpacing.sm),
+                      AppCard(child: _GoalRules(campaign: campaign)),
+                      const SizedBox(height: AppSpacing.xl),
+                      const _SectionHeading(title: 'Reward terms'),
+                      const SizedBox(height: AppSpacing.sm),
+                      CampaignRewardPreview(reward: campaign.reward),
+                      const SizedBox(height: AppSpacing.md),
+                      AppCard(child: _RewardTerms(campaign: campaign)),
+                      const SizedBox(height: AppSpacing.xl),
+                      const AppCard(child: _BehaviorExplanation()),
+                      const SizedBox(height: AppSpacing.xl),
+                      AppButton(
+                        label: _actionLabel(
+                          status,
+                          isThisActive: isThisActive,
+                          completed: completed,
+                          expiredEnrollment: expiredEnrollment,
+                        ),
+                        icon:
+                            status == CampaignStatus.available ||
+                                status == CampaignStatus.endingSoon
+                            ? Icons.add_circle_outline
+                            : Icons.lock_clock_outlined,
+                        expanded: true,
+                        onPressed: isThisActive
+                            ? () => _openActiveCampaign(context)
+                            : completed || expiredEnrollment
+                            ? null
+                            : status == CampaignStatus.available ||
+                                  status == CampaignStatus.endingSoon
+                            ? () => anotherActive
+                                  ? _showActiveConflict(context)
+                                  : _confirmJoin(context)
+                            : null,
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  String _actionLabel(CampaignStatus status) => switch (status) {
-    CampaignStatus.available || CampaignStatus.endingSoon => 'Join Campaign',
-    CampaignStatus.upcoming => 'Starts on ${campaignDate(campaign.startAt)}',
-    CampaignStatus.expired => 'Campaign ended',
-  };
+  String _actionLabel(
+    CampaignStatus status, {
+    required bool isThisActive,
+    required bool completed,
+    required bool expiredEnrollment,
+  }) {
+    if (isThisActive) return 'View Campaign Progress';
+    if (completed) return 'Campaign Completed';
+    if (expiredEnrollment) return 'Campaign Ended';
+    return switch (status) {
+      CampaignStatus.available || CampaignStatus.endingSoon => 'Join Campaign',
+      CampaignStatus.upcoming => 'Starts on ${campaignDate(campaign.startAt)}',
+      CampaignStatus.expired => 'Campaign Ended',
+    };
+  }
 }
 
 class _CampaignIdentity extends StatelessWidget {

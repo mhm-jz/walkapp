@@ -7,6 +7,8 @@ import 'features/auth/presentation/login_page.dart';
 import 'features/auth/presentation/onboarding_page.dart';
 import 'features/auth/presentation/register_page.dart';
 import 'features/app_shell/presentation/app_shell_page.dart';
+import 'features/campaigns/data/hive_campaign_enrollment_repository.dart';
+import 'features/campaigns/data/campaign_enrollment_repository.dart';
 import 'features/step_counter/data/step_local_store.dart';
 import 'features/step_counter/presentation/step_counter_controller.dart';
 import 'features/step_counter/service/step_foreground_service.dart';
@@ -14,6 +16,8 @@ import 'features/step_counter/service/step_foreground_service.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final preferences = await AppPreferences.open();
+  final campaignEnrollmentRepository =
+      await HiveCampaignEnrollmentRepository.open();
   final settingsController = AppSettingsController(preferences);
   final trackingService = StepForegroundService()..initialize();
   final controller = StepCounterController(
@@ -21,18 +25,24 @@ Future<void> main() async {
     storeFactory: const AppStepSnapshotStoreFactory(),
   );
   runApp(
-    WalkingApp(controller: controller, settingsController: settingsController),
+    WalkingApp(
+      controller: controller,
+      settingsController: settingsController,
+      campaignEnrollmentRepository: campaignEnrollmentRepository,
+    ),
   );
 }
 
 class WalkingApp extends StatefulWidget {
   const WalkingApp({
     required this.controller,
+    this.campaignEnrollmentRepository,
     this.settingsController,
     super.key,
   });
 
   final StepCounterController controller;
+  final CampaignEnrollmentRepository? campaignEnrollmentRepository;
   final AppSettingsController? settingsController;
 
   @override
@@ -43,6 +53,9 @@ class _WalkingAppState extends State<WalkingApp> {
   final _navigatorKey = GlobalKey<NavigatorState>();
   late final AppSettingsController _settingsController =
       widget.settingsController ?? AppSettingsController.inMemory();
+  late final CampaignEnrollmentRepository _campaignEnrollmentRepository =
+      widget.campaignEnrollmentRepository ??
+      InMemoryCampaignEnrollmentRepository();
 
   Route<void> _routeTo(Widget page) {
     return PageRouteBuilder<void>(
@@ -76,6 +89,7 @@ class _WalkingAppState extends State<WalkingApp> {
         AppShellPage(
           stepController: widget.controller,
           settingsController: _settingsController,
+          enrollmentRepository: _campaignEnrollmentRepository,
           onLogout: _logout,
         ),
       ),

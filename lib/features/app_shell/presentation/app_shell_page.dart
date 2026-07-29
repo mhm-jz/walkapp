@@ -4,6 +4,8 @@ import '../../../core/preferences/app_settings_controller.dart';
 import '../../about/presentation/about_page.dart';
 import '../../achievements/presentation/achievements_page.dart';
 import '../../campaigns/data/local_campaign_repository.dart';
+import '../../campaigns/data/campaign_enrollment_repository.dart';
+import '../../campaigns/application/campaign_enrollment_controller.dart';
 import '../../campaigns/presentation/campaigns_page.dart';
 import '../../progress/presentation/progress_page.dart';
 import '../../profile/presentation/account_menu.dart';
@@ -17,12 +19,14 @@ class AppShellPage extends StatefulWidget {
   const AppShellPage({
     required this.stepController,
     required this.settingsController,
+    required this.enrollmentRepository,
     required this.onLogout,
     super.key,
   });
 
   final StepCounterController stepController;
   final AppSettingsController settingsController;
+  final CampaignEnrollmentRepository enrollmentRepository;
   final VoidCallback onLogout;
 
   @override
@@ -32,11 +36,20 @@ class AppShellPage extends StatefulWidget {
 class _AppShellPageState extends State<AppShellPage> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   late final List<Widget> _pages;
+  late final LocalCampaignRepository _campaignRepository;
+  late final CampaignEnrollmentController _campaignController;
   int _selectedIndex = 0;
 
   @override
   void initState() {
     super.initState();
+    _campaignRepository = LocalCampaignRepository();
+    _campaignController = CampaignEnrollmentController(
+      widget.enrollmentRepository,
+      _campaignRepository,
+      widget.stepController,
+    );
+    _campaignController.initialize();
     _pages = <Widget>[
       StepCounterPage(
         controller: widget.stepController,
@@ -44,14 +57,24 @@ class _AppShellPageState extends State<AppShellPage> {
         embedded: true,
         onOpenAccount: () => _scaffoldKey.currentState?.openEndDrawer(),
       ),
-      CampaignsPage(repository: LocalCampaignRepository()),
-      const RewardsPage(),
+      CampaignsPage(
+        repository: _campaignRepository,
+        enrollmentController: _campaignController,
+        settingsController: widget.settingsController,
+      ),
+      RewardsPage(enrollmentController: _campaignController),
       ProgressPage(
         controller: widget.stepController,
         settingsController: widget.settingsController,
         onLogout: widget.onLogout,
       ),
     ];
+  }
+
+  @override
+  void dispose() {
+    _campaignController.dispose();
+    super.dispose();
   }
 
   void _openPage(Widget page) {
