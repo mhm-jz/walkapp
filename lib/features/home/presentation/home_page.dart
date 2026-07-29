@@ -28,6 +28,7 @@ import '../../step_counter/data/step_snapshot.dart';
 import '../../step_counter/domain/tracking_activity.dart';
 import '../../step_counter/presentation/step_counter_controller.dart';
 import '../../step_counter/presentation/widgets/daily_goal_sheet.dart';
+import '../../notifications/application/notification_controller.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({
@@ -38,6 +39,8 @@ class HomePage extends StatefulWidget {
     required this.onOpenAccount,
     required this.onOpenCampaigns,
     required this.onOpenRewards,
+    required this.notificationController,
+    required this.onOpenNotifications,
     super.key,
   });
 
@@ -48,6 +51,8 @@ class HomePage extends StatefulWidget {
   final VoidCallback onOpenAccount;
   final VoidCallback onOpenCampaigns;
   final VoidCallback onOpenRewards;
+  final NotificationController notificationController;
+  final VoidCallback onOpenNotifications;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -171,11 +176,17 @@ class _HomePageState extends State<HomePage> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: <Widget>[
                           AnimatedBuilder(
-                            animation: widget.settingsController,
+                            animation: Listenable.merge(<Listenable>[
+                              widget.settingsController,
+                              widget.notificationController,
+                            ]),
                             builder: (context, child) => _HomeHeader(
                               profileName:
                                   widget.settingsController.profileName,
                               onOpenAccount: widget.onOpenAccount,
+                              unreadCount:
+                                  widget.notificationController.unreadCount,
+                              onOpenNotifications: widget.onOpenNotifications,
                             ),
                           ),
                           const SizedBox(height: AppSpacing.lg),
@@ -304,10 +315,17 @@ class _HomePageState extends State<HomePage> {
 }
 
 class _HomeHeader extends StatelessWidget {
-  const _HomeHeader({required this.profileName, required this.onOpenAccount});
+  const _HomeHeader({
+    required this.profileName,
+    required this.onOpenAccount,
+    required this.unreadCount,
+    required this.onOpenNotifications,
+  });
 
   final String profileName;
   final VoidCallback onOpenAccount;
+  final int unreadCount;
+  final VoidCallback onOpenNotifications;
 
   @override
   Widget build(BuildContext context) {
@@ -337,6 +355,27 @@ class _HomeHeader extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+        Semantics(
+          label: unreadCount == 0
+              ? 'Notifications, none unread'
+              : 'Notifications, $unreadCount unread',
+          button: true,
+          child: Badge(
+            isLabelVisible: unreadCount > 0,
+            label: AnimatedSwitcher(
+              duration: AppDurations.fast,
+              child: Text(
+                unreadCount > 99 ? '99+' : '$unreadCount',
+                key: ValueKey(unreadCount),
+              ),
+            ),
+            child: AppIconButton(
+              icon: Icons.notifications_outlined,
+              tooltip: 'Open notifications',
+              onPressed: onOpenNotifications,
+            ),
           ),
         ),
         AppIconButton(

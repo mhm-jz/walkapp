@@ -20,6 +20,16 @@ import '../../step_counter/presentation/step_counter_controller.dart';
 import '../../home/presentation/home_page.dart';
 import '../../history/application/daily_step_history_controller.dart';
 import '../../history/data/daily_step_history_repository.dart';
+import '../../notifications/application/notification_controller.dart';
+import '../../notifications/data/notification_repository.dart';
+import '../../notifications/domain/app_notification.dart';
+import '../../notifications/domain/app_notification_destination.dart';
+import '../../notifications/presentation/notification_center_page.dart';
+import '../../campaigns/presentation/active_campaign_page.dart';
+import '../../rewards/presentation/my_rewards_page.dart';
+import '../../rewards/presentation/coupon_details_page.dart';
+import '../../history/presentation/history_page.dart';
+import '../../../core/design_system/components/app_feedback.dart';
 
 class AppShellPage extends StatefulWidget {
   const AppShellPage({
@@ -29,6 +39,7 @@ class AppShellPage extends StatefulWidget {
     required this.rewardWalletRepository,
     required this.claimedRewardRepository,
     required this.dailyStepHistoryRepository,
+    required this.notificationRepository,
     required this.onLogout,
     super.key,
   });
@@ -39,19 +50,22 @@ class AppShellPage extends StatefulWidget {
   final RewardWalletRepository rewardWalletRepository;
   final ClaimedRewardRepository claimedRewardRepository;
   final DailyStepHistoryRepository dailyStepHistoryRepository;
+  final NotificationRepository notificationRepository;
   final VoidCallback onLogout;
 
   @override
   State<AppShellPage> createState() => _AppShellPageState();
 }
 
-class _AppShellPageState extends State<AppShellPage> {
+class _AppShellPageState extends State<AppShellPage>
+    with WidgetsBindingObserver {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   late final List<Widget> _pages;
   late final LocalCampaignRepository _campaignRepository;
   late final CampaignEnrollmentController _campaignController;
   late final RewardsController _rewardsController;
   late final DailyStepHistoryController _historyController;
+  late final NotificationController _notificationController;
   int _selectedIndex = 0;
 
   @override
@@ -74,6 +88,14 @@ class _AppShellPageState extends State<AppShellPage> {
       widget.stepController,
       widget.settingsController,
     );
+    _notificationController = NotificationController(
+      repository: widget.notificationRepository,
+      stepController: widget.stepController,
+      campaignController: _campaignController,
+      rewardsController: _rewardsController,
+      settingsController: widget.settingsController,
+    );
+    WidgetsBinding.instance.addObserver(this);
     _initializeControllers();
     _pages = <Widget>[
       HomePage(
@@ -84,6 +106,8 @@ class _AppShellPageState extends State<AppShellPage> {
         rewardsController: _rewardsController,
         onOpenCampaigns: () => _selectTab(1),
         onOpenRewards: () => _selectTab(2),
+        notificationController: _notificationController,
+        onOpenNotifications: _openNotificationCenter,
       ),
       CampaignsPage(
         repository: _campaignRepository,
@@ -101,6 +125,8 @@ class _AppShellPageState extends State<AppShellPage> {
         historyController: _historyController,
         campaignController: _campaignController,
         onLogout: widget.onLogout,
+        notificationController: _notificationController,
+        onOpenNotifications: _openNotificationCenter,
       ),
     ];
   }
@@ -110,6 +136,7 @@ class _AppShellPageState extends State<AppShellPage> {
     await _historyController.initialize();
     await _campaignController.initialize();
     await _rewardsController.initialize();
+    await _notificationController.initialize();
   }
 
   void _selectTab(int index) {
@@ -119,10 +146,90 @@ class _AppShellPageState extends State<AppShellPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _notificationController.dispose();
     _rewardsController.dispose();
     _campaignController.dispose();
     _historyController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    _rewardsController.refreshExpirationState();
+    _notificationController.evaluateNow();
+  }
+
+  void _openNotificationCenter() {
+    _openPage(
+      NotificationCenterPage(
+        controller: _notificationController,
+        onOpenNotification: _openNotificationDestination,
+      ),
+    );
+  }
+
+  Future<void> _openNotificationDestination(
+    AppNotification notification,
+  ) async {
+    await _notificationController.markAsRead(notification);
+    if (!mounted) return;
+    switch (notification.destination) {
+      case AppNotificationDestination.home:
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        _selectTab(0);
+      case AppNotificationDestination.campaigns:
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        _selectTab(1);
+      case AppNotificationDestination.rewards:
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        _selectTab(2);
+      case AppNotificationDestination.activeCampaign:
+        final enrollment = _campaignController.enrollments
+            .where((item) => item.id == notification.relatedEnrollmentId)
+            .firstOrNull;
+        if (enrollment == null) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+          _selectTab(1);
+          AppSnackbar.show(
+            context,
+            'That campaign is no longer available. Showing Campaigns.',
+          );
+          return;
+        }
+        _openPage(
+          ActiveCampaignPage(
+            controller: _campaignController,
+            rewardsController: _rewardsController,
+          ),
+        );
+      case AppNotificationDestination.myRewards:
+        _openPage(MyRewardsPage(controller: _rewardsController));
+      case AppNotificationDestination.couponDetails:
+        final claim = _rewardsController.claimedRewardById(
+          notification.relatedClaimedRewardId ?? '',
+        );
+        if (claim == null) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+          _selectTab(2);
+          AppSnackbar.show(
+            context,
+            'That coupon is no longer available. Showing Rewards.',
+          );
+          return;
+        }
+        _openPage(
+          CouponDetailsPage(
+            claimedRewardId: claim.id,
+            controller: _rewardsController,
+          ),
+        );
+      case AppNotificationDestination.history:
+        _openPage(HistoryPage(controller: _historyController));
+      case AppNotificationDestination.none:
+        break;
+    }
   }
 
   void _openPage(Widget page) {

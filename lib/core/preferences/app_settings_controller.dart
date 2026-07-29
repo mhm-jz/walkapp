@@ -11,7 +11,13 @@ final class AppSettingsController extends ChangeNotifier {
       _profileEmail = preferences.profileEmail,
       _onboardingCompleted = preferences.onboardingCompleted,
       _rewardInterests = preferences.rewardInterests,
-      _selectedCity = preferences.selectedCity;
+      _selectedCity = preferences.selectedCity,
+      _inAppDailyGoalReminderEnabled =
+          preferences.inAppDailyGoalReminderEnabled,
+      _inAppDailyGoalReminderTime = preferences.inAppDailyGoalReminderTime,
+      _inAppGoalCompletionEnabled = preferences.inAppGoalCompletionEnabled,
+      _inAppCampaignUpdatesEnabled = preferences.inAppCampaignUpdatesEnabled,
+      _inAppRewardUpdatesEnabled = preferences.inAppRewardUpdatesEnabled;
 
   AppSettingsController.inMemory()
     : _preferences = null,
@@ -21,7 +27,12 @@ final class AppSettingsController extends ChangeNotifier {
       _profileEmail = '',
       _onboardingCompleted = false,
       _rewardInterests = const <String>[],
-      _selectedCity = 'Prefer not to say';
+      _selectedCity = 'Prefer not to say',
+      _inAppDailyGoalReminderEnabled = false,
+      _inAppDailyGoalReminderTime = null,
+      _inAppGoalCompletionEnabled = true,
+      _inAppCampaignUpdatesEnabled = true,
+      _inAppRewardUpdatesEnabled = true;
 
   final AppPreferences? _preferences;
   ThemeMode _themeMode;
@@ -31,6 +42,11 @@ final class AppSettingsController extends ChangeNotifier {
   bool _onboardingCompleted;
   List<String> _rewardInterests;
   String _selectedCity;
+  bool _inAppDailyGoalReminderEnabled;
+  int? _inAppDailyGoalReminderTime;
+  bool _inAppGoalCompletionEnabled;
+  bool _inAppCampaignUpdatesEnabled;
+  bool _inAppRewardUpdatesEnabled;
 
   ThemeMode get themeMode => _themeMode;
   int get dailyGoal => _dailyGoal;
@@ -40,6 +56,11 @@ final class AppSettingsController extends ChangeNotifier {
   List<String> get rewardInterests =>
       List<String>.unmodifiable(_rewardInterests);
   String get selectedCity => _selectedCity;
+  bool get inAppDailyGoalReminderEnabled => _inAppDailyGoalReminderEnabled;
+  int? get inAppDailyGoalReminderTime => _inAppDailyGoalReminderTime;
+  bool get inAppGoalCompletionEnabled => _inAppGoalCompletionEnabled;
+  bool get inAppCampaignUpdatesEnabled => _inAppCampaignUpdatesEnabled;
+  bool get inAppRewardUpdatesEnabled => _inAppRewardUpdatesEnabled;
 
   Future<void> setThemeMode(ThemeMode value) async {
     if (_themeMode == value) return;
@@ -100,5 +121,52 @@ final class AppSettingsController extends ChangeNotifier {
     await _preferences?.setOnboardingCompleted(true);
     _onboardingCompleted = true;
     notifyListeners();
+  }
+
+  Future<void> setInAppDailyGoalReminder({
+    required bool enabled,
+    int? timeMinutes,
+  }) async {
+    final effectiveTime = enabled
+        ? (timeMinutes ?? _inAppDailyGoalReminderTime ?? 18 * 60)
+        : _inAppDailyGoalReminderTime;
+    if (_inAppDailyGoalReminderEnabled == enabled &&
+        _inAppDailyGoalReminderTime == effectiveTime) {
+      return;
+    }
+    _inAppDailyGoalReminderEnabled = enabled;
+    _inAppDailyGoalReminderTime = effectiveTime;
+    notifyListeners();
+    await _preferences?.setInAppDailyGoalReminder(
+      enabled: enabled,
+      timeMinutes: effectiveTime,
+    );
+  }
+
+  Future<void> setInAppDailyGoalReminderTime(int value) =>
+      setInAppDailyGoalReminder(
+        enabled: _inAppDailyGoalReminderEnabled,
+        timeMinutes: value.clamp(0, 1439),
+      );
+
+  Future<void> setInAppGoalCompletionEnabled(bool value) async {
+    if (_inAppGoalCompletionEnabled == value) return;
+    _inAppGoalCompletionEnabled = value;
+    notifyListeners();
+    await _preferences?.setInAppGoalCompletionEnabled(value);
+  }
+
+  Future<void> setInAppCampaignUpdatesEnabled(bool value) async {
+    if (_inAppCampaignUpdatesEnabled == value) return;
+    _inAppCampaignUpdatesEnabled = value;
+    notifyListeners();
+    await _preferences?.setInAppCampaignUpdatesEnabled(value);
+  }
+
+  Future<void> setInAppRewardUpdatesEnabled(bool value) async {
+    if (_inAppRewardUpdatesEnabled == value) return;
+    _inAppRewardUpdatesEnabled = value;
+    notifyListeners();
+    await _preferences?.setInAppRewardUpdatesEnabled(value);
   }
 }

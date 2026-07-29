@@ -4,6 +4,7 @@ import '../../../core/design_system/components/app_button.dart';
 import '../../../core/design_system/components/app_card.dart';
 import '../../../core/design_system/components/app_feedback.dart';
 import '../../../core/design_system/components/app_status_chip.dart';
+import '../../../core/design_system/components/app_selection.dart';
 import '../../../core/design_system/extensions/app_theme_extension.dart';
 import '../../../core/design_system/tokens/app_tokens.dart';
 import '../../../core/preferences/app_settings_controller.dart';
@@ -50,6 +51,18 @@ class SettingsPage extends StatelessWidget {
       ],
     );
     if (confirmed == true && context.mounted) onLogout();
+  }
+
+  Future<void> _pickReminderTime(BuildContext context) async {
+    final minutes = settingsController.inAppDailyGoalReminderTime ?? 18 * 60;
+    final selected = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60),
+    );
+    if (selected == null) return;
+    await settingsController.setInAppDailyGoalReminderTime(
+      selected.hour * 60 + selected.minute,
+    );
   }
 
   @override
@@ -155,6 +168,77 @@ class SettingsPage extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: AppSpacing.xl),
+                        _SectionTitle(title: 'In-app notifications'),
+                        const SizedBox(height: AppSpacing.sm),
+                        AppCard(
+                          padding: EdgeInsets.zero,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  AppSpacing.lg,
+                                  AppSpacing.lg,
+                                  AppSpacing.lg,
+                                  AppSpacing.sm,
+                                ),
+                                child: Text(
+                                  'WalkApp checks these reminders while the app is open or when you return to it. System notifications are not enabled in this prototype.',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: context.appTheme.textSecondary,
+                                      ),
+                                ),
+                              ),
+                              AppSwitch(
+                                label: 'Daily goal reminder',
+                                value: settingsController
+                                    .inAppDailyGoalReminderEnabled,
+                                onChanged: (value) => settingsController
+                                    .setInAppDailyGoalReminder(enabled: value),
+                              ),
+                              if (settingsController
+                                  .inAppDailyGoalReminderEnabled)
+                                ListTile(
+                                  minTileHeight: AppSizes.minTouchTarget,
+                                  leading: const Icon(Icons.schedule_outlined),
+                                  title: const Text('Reminder time'),
+                                  subtitle: Text(
+                                    _formatTime(
+                                      context,
+                                      settingsController
+                                              .inAppDailyGoalReminderTime ??
+                                          18 * 60,
+                                    ),
+                                  ),
+                                  trailing: const Icon(Icons.chevron_right),
+                                  onTap: () => _pickReminderTime(context),
+                                ),
+                              AppSwitch(
+                                label: 'Goal completion updates',
+                                value: settingsController
+                                    .inAppGoalCompletionEnabled,
+                                onChanged: settingsController
+                                    .setInAppGoalCompletionEnabled,
+                              ),
+                              AppSwitch(
+                                label: 'Campaign updates',
+                                value: settingsController
+                                    .inAppCampaignUpdatesEnabled,
+                                onChanged: settingsController
+                                    .setInAppCampaignUpdatesEnabled,
+                              ),
+                              AppSwitch(
+                                label: 'Reward updates',
+                                value: settingsController
+                                    .inAppRewardUpdatesEnabled,
+                                onChanged: settingsController
+                                    .setInAppRewardUpdatesEnabled,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
                         _SectionTitle(title: 'Tracking information'),
                         const SizedBox(height: AppSpacing.sm),
                         const AppCard(
@@ -249,6 +333,9 @@ class SettingsPage extends StatelessWidget {
       ),
     );
   }
+
+  String _formatTime(BuildContext context, int minutes) =>
+      TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60).format(context);
 
   Widget _themeButton({
     required ThemeMode mode,

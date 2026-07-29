@@ -15,6 +15,7 @@ import '../../history/application/daily_step_history_controller.dart';
 import '../../campaigns/application/campaign_enrollment_controller.dart';
 import '../../achievements/domain/health_achievement.dart';
 import '../../campaigns/presentation/campaign_formatters.dart';
+import '../../notifications/application/notification_controller.dart';
 
 class ProgressPage extends StatelessWidget {
   const ProgressPage({
@@ -23,6 +24,8 @@ class ProgressPage extends StatelessWidget {
     required this.historyController,
     required this.campaignController,
     required this.onLogout,
+    required this.notificationController,
+    required this.onOpenNotifications,
     super.key,
   });
 
@@ -31,6 +34,8 @@ class ProgressPage extends StatelessWidget {
   final DailyStepHistoryController historyController;
   final CampaignEnrollmentController campaignController;
   final VoidCallback onLogout;
+  final NotificationController notificationController;
+  final VoidCallback onOpenNotifications;
 
   void _openPage(BuildContext context, Widget page) {
     Navigator.of(
@@ -55,6 +60,7 @@ class ProgressPage extends StatelessWidget {
           settingsController,
           historyController,
           campaignController,
+          notificationController,
         ]),
         builder: (context, child) {
           final now = DateTime.now();
@@ -119,6 +125,14 @@ class ProgressPage extends StatelessWidget {
                       padding: EdgeInsets.zero,
                       child: Column(
                         children: <Widget>[
+                          _DestinationRow(
+                            icon: Icons.notifications_outlined,
+                            title: 'Notifications',
+                            description:
+                                '${notificationController.unreadCount} unread',
+                            onTap: onOpenNotifications,
+                          ),
+                          const Divider(height: 1),
                           _DestinationRow(
                             icon: Icons.history,
                             title: 'History',

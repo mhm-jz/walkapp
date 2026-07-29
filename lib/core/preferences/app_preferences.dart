@@ -13,6 +13,11 @@ final class AppPreferences {
   static const _onboardingCompletedKey = 'onboarding_completed';
   static const _rewardInterestsKey = 'reward_interests';
   static const _selectedCityKey = 'selected_city';
+  static const _dailyReminderEnabledKey = 'in_app_daily_reminder_enabled';
+  static const _dailyReminderTimeKey = 'in_app_daily_reminder_time';
+  static const _goalCompletionEnabledKey = 'in_app_goal_completion_enabled';
+  static const _campaignUpdatesEnabledKey = 'in_app_campaign_updates_enabled';
+  static const _rewardUpdatesEnabledKey = 'in_app_reward_updates_enabled';
   static const defaultDailyGoal = 10000;
 
   final Box<dynamic> _box;
@@ -59,6 +64,27 @@ final class AppPreferences {
   String get selectedCity =>
       _box.get(_selectedCityKey)?.toString().trim() ?? 'Prefer not to say';
 
+  bool get inAppDailyGoalReminderEnabled =>
+      _box.get(_dailyReminderEnabledKey) == true;
+  int? get inAppDailyGoalReminderTime {
+    final value = _box.get(_dailyReminderTimeKey);
+    final parsed = value is int ? value : int.tryParse(value?.toString() ?? '');
+    return parsed?.clamp(0, 1439);
+  }
+
+  bool get inAppGoalCompletionEnabled =>
+      _box.get(_goalCompletionEnabledKey) is bool
+      ? _box.get(_goalCompletionEnabledKey) as bool
+      : true;
+  bool get inAppCampaignUpdatesEnabled =>
+      _box.get(_campaignUpdatesEnabledKey) is bool
+      ? _box.get(_campaignUpdatesEnabledKey) as bool
+      : true;
+  bool get inAppRewardUpdatesEnabled =>
+      _box.get(_rewardUpdatesEnabledKey) is bool
+      ? _box.get(_rewardUpdatesEnabledKey) as bool
+      : true;
+
   Future<void> setThemeMode(ThemeMode value) =>
       _box.put(_themeModeKey, value.name);
 
@@ -82,4 +108,19 @@ final class AppPreferences {
 
   Future<void> setOnboardingCompleted(bool value) =>
       _box.put(_onboardingCompletedKey, value);
+
+  Future<void> setInAppDailyGoalReminder({
+    required bool enabled,
+    required int? timeMinutes,
+  }) => _box.putAll(<String, Object?>{
+    _dailyReminderEnabledKey: enabled,
+    _dailyReminderTimeKey: timeMinutes,
+  });
+
+  Future<void> setInAppGoalCompletionEnabled(bool value) =>
+      _box.put(_goalCompletionEnabledKey, value);
+  Future<void> setInAppCampaignUpdatesEnabled(bool value) =>
+      _box.put(_campaignUpdatesEnabledKey, value);
+  Future<void> setInAppRewardUpdatesEnabled(bool value) =>
+      _box.put(_rewardUpdatesEnabledKey, value);
 }
