@@ -2,6 +2,7 @@ import '../domain/campaign.dart';
 import '../domain/campaign_brand.dart';
 import '../domain/campaign_category.dart';
 import '../domain/campaign_reward.dart';
+import '../domain/campaign_reward_type.dart';
 import '../domain/campaign_type.dart';
 import 'campaign_repository.dart';
 
@@ -26,6 +27,7 @@ final class LocalCampaignRepository implements CampaignRepository {
         targetSteps: 30000,
         requiredGoalDays: null,
         reward: const CampaignReward(
+          rewardId: 'campaign-movewear-20',
           title: 'Selected sportswear saving',
           description: 'Save on eligible MoveWear sportswear.',
           discountLabel: '20% off selected sportswear',
@@ -57,9 +59,11 @@ final class LocalCampaignRepository implements CampaignRepository {
         targetSteps: null,
         requiredGoalDays: 5,
         reward: const CampaignReward(
-          title: 'Healthy-meal saving',
-          description: 'Save on one eligible GreenBite meal order.',
-          discountLabel: '€8 off an eligible meal order',
+          type: CampaignRewardType.points,
+          pointsAmount: 250,
+          title: '250 reward points',
+          description: 'Earn points to spend in the Reward Catalog.',
+          discountLabel: '250 points',
           minimumPurchaseDescription: 'Minimum purchase of €25',
           usageChannel: 'Online ordering only',
           expirationDescription: 'Use within 10 days of unlocking',
@@ -88,9 +92,11 @@ final class LocalCampaignRepository implements CampaignRepository {
         targetSteps: 60000,
         requiredGoalDays: null,
         reward: const CampaignReward(
-          title: 'Training accessory saving',
-          description: 'Save on selected UrbanFit training accessories.',
-          discountLabel: '15% off selected accessories',
+          type: CampaignRewardType.points,
+          pointsAmount: 400,
+          title: '400 reward points',
+          description: 'Earn points to spend in the Reward Catalog.',
+          discountLabel: '400 points',
           minimumPurchaseDescription: 'Minimum purchase of €35',
           usageChannel: 'Online only',
           expirationDescription: 'Use within 21 days of unlocking',
@@ -118,6 +124,7 @@ final class LocalCampaignRepository implements CampaignRepository {
         targetSteps: null,
         requiredGoalDays: 8,
         reward: const CampaignReward(
+          rewardId: 'campaign-stepstyle-18',
           title: 'Walking apparel saving',
           description: 'Save on selected StepStyle walking apparel.',
           discountLabel: '18% off eligible walking apparel',
@@ -149,6 +156,7 @@ final class LocalCampaignRepository implements CampaignRepository {
         targetSteps: 20000,
         requiredGoalDays: null,
         reward: const CampaignReward(
+          rewardId: 'campaign-freshday-10',
           title: 'Wellness bundle saving',
           description: 'Save on one eligible FreshDay wellness bundle.',
           discountLabel: '€10 off an eligible wellness bundle',
@@ -180,6 +188,7 @@ final class LocalCampaignRepository implements CampaignRepository {
         targetSteps: null,
         requiredGoalDays: 4,
         reward: const CampaignReward(
+          rewardId: 'campaign-activelife-25',
           title: 'Wellness session saving',
           description: 'A saving on an eligible ActiveLife session.',
           discountLabel: '25% off one eligible wellness session',

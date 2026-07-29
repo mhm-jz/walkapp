@@ -9,6 +9,10 @@ import 'features/auth/presentation/register_page.dart';
 import 'features/app_shell/presentation/app_shell_page.dart';
 import 'features/campaigns/data/hive_campaign_enrollment_repository.dart';
 import 'features/campaigns/data/campaign_enrollment_repository.dart';
+import 'features/rewards/data/claimed_reward_repository.dart';
+import 'features/rewards/data/hive_claimed_reward_repository.dart';
+import 'features/rewards/data/hive_reward_wallet_repository.dart';
+import 'features/rewards/data/reward_wallet_repository.dart';
 import 'features/step_counter/data/step_local_store.dart';
 import 'features/step_counter/presentation/step_counter_controller.dart';
 import 'features/step_counter/service/step_foreground_service.dart';
@@ -18,6 +22,8 @@ Future<void> main() async {
   final preferences = await AppPreferences.open();
   final campaignEnrollmentRepository =
       await HiveCampaignEnrollmentRepository.open();
+  final rewardWalletRepository = await HiveRewardWalletRepository.open();
+  final claimedRewardRepository = await HiveClaimedRewardRepository.open();
   final settingsController = AppSettingsController(preferences);
   final trackingService = StepForegroundService()..initialize();
   final controller = StepCounterController(
@@ -29,6 +35,8 @@ Future<void> main() async {
       controller: controller,
       settingsController: settingsController,
       campaignEnrollmentRepository: campaignEnrollmentRepository,
+      rewardWalletRepository: rewardWalletRepository,
+      claimedRewardRepository: claimedRewardRepository,
     ),
   );
 }
@@ -37,12 +45,16 @@ class WalkingApp extends StatefulWidget {
   const WalkingApp({
     required this.controller,
     this.campaignEnrollmentRepository,
+    this.rewardWalletRepository,
+    this.claimedRewardRepository,
     this.settingsController,
     super.key,
   });
 
   final StepCounterController controller;
   final CampaignEnrollmentRepository? campaignEnrollmentRepository;
+  final RewardWalletRepository? rewardWalletRepository;
+  final ClaimedRewardRepository? claimedRewardRepository;
   final AppSettingsController? settingsController;
 
   @override
@@ -56,6 +68,10 @@ class _WalkingAppState extends State<WalkingApp> {
   late final CampaignEnrollmentRepository _campaignEnrollmentRepository =
       widget.campaignEnrollmentRepository ??
       InMemoryCampaignEnrollmentRepository();
+  late final RewardWalletRepository _rewardWalletRepository =
+      widget.rewardWalletRepository ?? InMemoryRewardWalletRepository();
+  late final ClaimedRewardRepository _claimedRewardRepository =
+      widget.claimedRewardRepository ?? InMemoryClaimedRewardRepository();
 
   Route<void> _routeTo(Widget page) {
     return PageRouteBuilder<void>(
@@ -90,6 +106,8 @@ class _WalkingAppState extends State<WalkingApp> {
           stepController: widget.controller,
           settingsController: _settingsController,
           enrollmentRepository: _campaignEnrollmentRepository,
+          rewardWalletRepository: _rewardWalletRepository,
+          claimedRewardRepository: _claimedRewardRepository,
           onLogout: _logout,
         ),
       ),

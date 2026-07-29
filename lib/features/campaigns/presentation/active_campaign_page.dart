@@ -11,13 +11,22 @@ import '../domain/campaign.dart';
 import '../domain/campaign_enrollment.dart';
 import '../domain/campaign_enrollment_status.dart';
 import '../domain/campaign_type.dart';
+import '../domain/campaign_reward_type.dart';
+import '../../rewards/application/rewards_controller.dart';
+import '../../rewards/presentation/coupon_details_page.dart';
+import '../../rewards/presentation/wallet_activity_page.dart';
 import 'campaign_formatters.dart';
 import 'widgets/campaign_shared_widgets.dart';
 
 class ActiveCampaignPage extends StatefulWidget {
-  const ActiveCampaignPage({required this.controller, super.key});
+  const ActiveCampaignPage({
+    required this.controller,
+    required this.rewardsController,
+    super.key,
+  });
 
   final CampaignEnrollmentController controller;
+  final RewardsController rewardsController;
 
   @override
   State<ActiveCampaignPage> createState() => _ActiveCampaignPageState();
@@ -47,8 +56,11 @@ class _ActiveCampaignPageState extends State<ActiveCampaignPage> {
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
-            'You unlocked ${campaign.reward.discountLabel}. '
-            'Reward claiming will be added in the next MVP phase.',
+            campaign.reward.type == CampaignRewardType.points
+                ? 'You earned ${campaign.reward.pointsAmount ?? 0} points. '
+                      'They are added to your Rewards balance once.'
+                : 'You unlocked ${campaign.reward.discountLabel}. '
+                      'Claim it when you are ready.',
             textAlign: TextAlign.center,
           ),
         ],
@@ -110,6 +122,51 @@ class _ActiveCampaignPageState extends State<ActiveCampaignPage> {
     );
   }
 
+  Future<void> _claimReward(CampaignEnrollment enrollment) async {
+    final result = await widget.rewardsController.claimCampaignReward(
+      enrollment,
+    );
+    if (!mounted) return;
+    final claim = widget.rewardsController.claimedRewardForCampaign(
+      enrollment.campaignId,
+    );
+    if ((result == RewardActionResult.success ||
+            result == RewardActionResult.alreadyClaimed) &&
+        claim != null) {
+      AppSnackbar.show(context, 'Campaign reward claimed');
+      Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (context) => CouponDetailsPage(
+            claimedRewardId: claim.id,
+            controller: widget.rewardsController,
+          ),
+        ),
+      );
+      return;
+    }
+    AppSnackbar.show(
+      context,
+      widget.rewardsController.userMessage ??
+          'The reward could not be claimed.',
+      isError: true,
+    );
+  }
+
+  void _viewCampaignReward(CampaignEnrollment enrollment) {
+    final claim = widget.rewardsController.claimedRewardForCampaign(
+      enrollment.campaignId,
+    );
+    if (claim == null) return;
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (context) => CouponDetailsPage(
+          claimedRewardId: claim.id,
+          controller: widget.rewardsController,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -118,6 +175,7 @@ class _ActiveCampaignPageState extends State<ActiveCampaignPage> {
         animation: Listenable.merge(<Listenable>[
           widget.controller,
           widget.controller.stepController,
+          widget.rewardsController,
         ]),
         builder: (context, child) {
           final enrollment = widget.controller.recentEnrollment;
@@ -160,8 +218,17 @@ class _ActiveCampaignPageState extends State<ActiveCampaignPage> {
             campaign: campaign,
             enrollment: enrollment,
             controller: widget.controller,
+            rewardsController: widget.rewardsController,
             onStartTracking: _startTracking,
             onLeave: _confirmLeave,
+            onClaimReward: () => _claimReward(enrollment),
+            onViewReward: () => _viewCampaignReward(enrollment),
+            onViewWallet: () => Navigator.of(context).push<void>(
+              MaterialPageRoute<void>(
+                builder: (context) =>
+                    WalletActivityPage(controller: widget.rewardsController),
+              ),
+            ),
           );
         },
       ),
@@ -174,15 +241,23 @@ class _CampaignBody extends StatelessWidget {
     required this.campaign,
     required this.enrollment,
     required this.controller,
+    required this.rewardsController,
     required this.onStartTracking,
     required this.onLeave,
+    required this.onClaimReward,
+    required this.onViewReward,
+    required this.onViewWallet,
   });
 
   final Campaign campaign;
   final CampaignEnrollment enrollment;
   final CampaignEnrollmentController controller;
+  final RewardsController rewardsController;
   final VoidCallback onStartTracking;
   final VoidCallback onLeave;
+  final VoidCallback onClaimReward;
+  final VoidCallback onViewReward;
+  final VoidCallback onViewWallet;
 
   @override
   Widget build(BuildContext context) {
@@ -206,6 +281,18 @@ class _CampaignBody extends StatelessWidget {
                 enrollment: enrollment,
                 controller: controller,
               ),
+              if (enrollment.status ==
+                  CampaignEnrollmentStatus.completed) ...<Widget>[
+                const SizedBox(height: AppSpacing.lg),
+                _CompletionRewardCard(
+                  campaign: campaign,
+                  enrollment: enrollment,
+                  rewardsController: rewardsController,
+                  onClaimReward: onClaimReward,
+                  onViewReward: onViewReward,
+                  onViewWallet: onViewWallet,
+                ),
+              ],
               const SizedBox(height: AppSpacing.lg),
               _TrackingCard(
                 isTracking: controller.stepController.snapshot.isTracking,
@@ -226,6 +313,72 @@ class _CampaignBody extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _CompletionRewardCard extends StatelessWidget {
+  const _CompletionRewardCard({
+    required this.campaign,
+    required this.enrollment,
+    required this.rewardsController,
+    required this.onClaimReward,
+    required this.onViewReward,
+    required this.onViewWallet,
+  });
+
+  final Campaign campaign;
+  final CampaignEnrollment enrollment;
+  final RewardsController rewardsController;
+  final VoidCallback onClaimReward;
+  final VoidCallback onViewReward;
+  final VoidCallback onViewWallet;
+
+  @override
+  Widget build(BuildContext context) {
+    final points = campaign.reward.type == CampaignRewardType.points;
+    final pointsAdded = rewardsController.campaignPointsAdded(enrollment);
+    final claim = rewardsController.claimedRewardForCampaign(campaign.id);
+    return AppCard(
+      color: Theme.of(context).colorScheme.secondaryContainer,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Text(
+            points
+                ? '${campaign.reward.pointsAmount ?? 0} points earned'
+                : campaign.reward.discountLabel,
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            points
+                ? pointsAdded
+                      ? 'Added to your Rewards balance.'
+                      : 'Your points are being added safely.'
+                : claim == null
+                ? 'Your completed campaign reward is ready to claim.'
+                : 'Your prototype coupon is available in My Rewards.',
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: AppButton(
+              label: points
+                  ? 'View Rewards'
+                  : claim == null
+                  ? 'Claim Reward'
+                  : 'View Reward',
+              isLoading: rewardsController.isSaving,
+              onPressed: points
+                  ? onViewWallet
+                  : claim == null
+                  ? onClaimReward
+                  : onViewReward,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -369,8 +522,9 @@ class _ProgressCard extends StatelessWidget {
                 CampaignEnrollmentStatus.completed) ...<Widget>[
               const SizedBox(height: AppSpacing.lg),
               Text(
-                'You unlocked ${campaign.reward.discountLabel}. '
-                'Reward claiming will be added in the next MVP phase.',
+                campaign.reward.type == CampaignRewardType.points
+                    ? 'You earned ${campaign.reward.pointsAmount ?? 0} reward points.'
+                    : 'You unlocked ${campaign.reward.discountLabel}.',
               ),
             ],
           ],

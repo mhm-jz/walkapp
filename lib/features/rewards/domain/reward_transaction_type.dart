@@ -1,0 +1,1 @@
+enum RewardTransactionType { credit, debit }

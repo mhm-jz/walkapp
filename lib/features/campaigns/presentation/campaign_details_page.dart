@@ -8,9 +8,14 @@ import '../../../core/design_system/tokens/app_tokens.dart';
 import '../../../core/preferences/app_settings_controller.dart';
 import '../application/campaign_enrollment_controller.dart';
 import '../domain/campaign.dart';
+import '../domain/campaign_enrollment.dart';
 import '../domain/campaign_enrollment_status.dart';
+import '../domain/campaign_reward_type.dart';
 import '../domain/campaign_status.dart';
 import '../domain/campaign_type.dart';
+import '../../rewards/application/rewards_controller.dart';
+import '../../rewards/presentation/coupon_details_page.dart';
+import '../../rewards/presentation/wallet_activity_page.dart';
 import 'campaign_formatters.dart';
 import 'active_campaign_page.dart';
 import 'widgets/campaign_shared_widgets.dart';
@@ -20,18 +25,22 @@ class CampaignDetailsPage extends StatelessWidget {
     required this.campaign,
     required this.enrollmentController,
     required this.settingsController,
+    required this.rewardsController,
     super.key,
   });
 
   final Campaign campaign;
   final CampaignEnrollmentController enrollmentController;
   final AppSettingsController settingsController;
+  final RewardsController rewardsController;
 
   void _openActiveCampaign(BuildContext context) {
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (context) =>
-            ActiveCampaignPage(controller: enrollmentController),
+        builder: (context) => ActiveCampaignPage(
+          controller: enrollmentController,
+          rewardsController: rewardsController,
+        ),
       ),
     );
   }
@@ -96,9 +105,9 @@ class CampaignDetailsPage extends StatelessWidget {
               ),
             ],
             const SizedBox(height: AppSpacing.sm),
-            const Text(
-              'Leaving removes this progress from active use. No points or '
-              'coupon are issued in this MVP phase.',
+            Text(
+              'Leaving removes this progress from active use. Completing this '
+              'campaign ${campaign.reward.type == CampaignRewardType.points ? 'awards ${campaign.reward.pointsAmount ?? 0} points' : 'unlocks a reward you can claim'}.',
             ),
           ],
         ),
@@ -145,13 +154,56 @@ class CampaignDetailsPage extends StatelessWidget {
     }
   }
 
+  Future<void> _handleCompletedReward(
+    BuildContext context,
+    CampaignEnrollment enrollment,
+  ) async {
+    if (campaign.reward.type == CampaignRewardType.points) {
+      Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (context) =>
+              WalletActivityPage(controller: rewardsController),
+        ),
+      );
+      return;
+    }
+    var claim = rewardsController.claimedRewardForCampaign(campaign.id);
+    if (claim == null) {
+      final result = await rewardsController.claimCampaignReward(enrollment);
+      if (!context.mounted) return;
+      if (result != RewardActionResult.success &&
+          result != RewardActionResult.alreadyClaimed) {
+        AppSnackbar.show(
+          context,
+          rewardsController.userMessage ?? 'The reward could not be claimed.',
+          isError: true,
+        );
+        return;
+      }
+      claim = rewardsController.claimedRewardForCampaign(campaign.id);
+    }
+    if (claim != null && context.mounted) {
+      Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (context) => CouponDetailsPage(
+            claimedRewardId: claim!.id,
+            controller: rewardsController,
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
     final status = campaign.statusAt(now);
 
     return AnimatedBuilder(
-      animation: enrollmentController,
+      animation: Listenable.merge(<Listenable>[
+        enrollmentController,
+        rewardsController,
+      ]),
       builder: (context, child) {
         final enrollment = enrollmentController.enrollmentFor(campaign.id);
         final isThisActive =
@@ -232,7 +284,9 @@ class CampaignDetailsPage extends StatelessWidget {
                         expanded: true,
                         onPressed: isThisActive
                             ? () => _openActiveCampaign(context)
-                            : completed || expiredEnrollment
+                            : completed && enrollment != null
+                            ? () => _handleCompletedReward(context, enrollment)
+                            : expiredEnrollment
                             ? null
                             : status == CampaignStatus.available ||
                                   status == CampaignStatus.endingSoon
@@ -259,7 +313,14 @@ class CampaignDetailsPage extends StatelessWidget {
     required bool expiredEnrollment,
   }) {
     if (isThisActive) return 'View Campaign Progress';
-    if (completed) return 'Campaign Completed';
+    if (completed) {
+      if (campaign.reward.type == CampaignRewardType.points) {
+        return 'View Rewards';
+      }
+      return rewardsController.claimedRewardForCampaign(campaign.id) == null
+          ? 'Claim Reward'
+          : 'View Reward';
+    }
     if (expiredEnrollment) return 'Campaign Ended';
     return switch (status) {
       CampaignStatus.available || CampaignStatus.endingSoon => 'Join Campaign',

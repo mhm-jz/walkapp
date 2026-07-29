@@ -14,6 +14,7 @@ import '../domain/campaign_category.dart';
 import '../domain/campaign_status.dart';
 import '../domain/campaign_enrollment.dart';
 import '../domain/campaign_type.dart';
+import '../../rewards/application/rewards_controller.dart';
 import 'active_campaign_page.dart';
 import 'campaign_details_page.dart';
 import 'campaign_formatters.dart';
@@ -28,12 +29,14 @@ class CampaignsPage extends StatefulWidget {
     required this.repository,
     required this.enrollmentController,
     required this.settingsController,
+    required this.rewardsController,
     super.key,
   });
 
   final CampaignRepository repository;
   final CampaignEnrollmentController enrollmentController;
   final AppSettingsController settingsController;
+  final RewardsController rewardsController;
 
   @override
   State<CampaignsPage> createState() => _CampaignsPageState();
@@ -75,6 +78,7 @@ class _CampaignsPageState extends State<CampaignsPage> {
           campaign: campaign,
           enrollmentController: widget.enrollmentController,
           settingsController: widget.settingsController,
+          rewardsController: widget.rewardsController,
         ),
       ),
     );
@@ -83,8 +87,10 @@ class _CampaignsPageState extends State<CampaignsPage> {
   void _openActiveCampaign() {
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (context) =>
-            ActiveCampaignPage(controller: widget.enrollmentController),
+        builder: (context) => ActiveCampaignPage(
+          controller: widget.enrollmentController,
+          rewardsController: widget.rewardsController,
+        ),
       ),
     );
   }

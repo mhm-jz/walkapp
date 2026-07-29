@@ -1,0 +1,1 @@
+enum CampaignRewardType { directOffer, points }

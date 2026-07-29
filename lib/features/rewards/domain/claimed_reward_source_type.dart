@@ -1,0 +1,1 @@
+enum ClaimedRewardSourceType { campaign, pointRedemption }
