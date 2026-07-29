@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 import '../../../core/preferences/app_settings_controller.dart';
 import '../../about/presentation/about_page.dart';
 import '../../achievements/presentation/achievements_page.dart';
-import '../../history/presentation/history_page.dart';
-import '../../insights/presentation/insights_page.dart';
+import '../../campaigns/presentation/campaigns_page.dart';
+import '../../progress/presentation/progress_page.dart';
 import '../../profile/presentation/account_menu.dart';
 import '../../profile/presentation/profile_page.dart';
+import '../../rewards/presentation/rewards_page.dart';
 import '../../settings/presentation/settings_page.dart';
 import '../../step_counter/presentation/step_counter_controller.dart';
 import '../../step_counter/presentation/step_counter_page.dart';
@@ -42,12 +43,10 @@ class _AppShellPageState extends State<AppShellPage> {
         embedded: true,
         onOpenAccount: () => _scaffoldKey.currentState?.openEndDrawer(),
       ),
-      const HistoryPage(),
-      InsightsPage(
+      const CampaignsPage(),
+      const RewardsPage(),
+      ProgressPage(
         controller: widget.stepController,
-        settingsController: widget.settingsController,
-      ),
-      SettingsPage(
         settingsController: widget.settingsController,
         onLogout: widget.onLogout,
       ),
@@ -58,10 +57,6 @@ class _AppShellPageState extends State<AppShellPage> {
     Navigator.of(
       context,
     ).push<void>(MaterialPageRoute<void>(builder: (context) => page));
-  }
-
-  void _openSettings() {
-    setState(() => _selectedIndex = 3);
   }
 
   @override
@@ -76,7 +71,12 @@ class _AppShellPageState extends State<AppShellPage> {
         ),
         onAchievements: () =>
             _openPage(AchievementsPage(controller: widget.stepController)),
-        onSettings: _openSettings,
+        onSettings: () => _openPage(
+          SettingsPage(
+            settingsController: widget.settingsController,
+            onLogout: widget.onLogout,
+          ),
+        ),
         onAbout: () => _openPage(const AboutPage()),
         onLogout: widget.onLogout,
       ),
@@ -94,19 +94,19 @@ class _AppShellPageState extends State<AppShellPage> {
             label: 'Home',
           ),
           NavigationDestination(
-            icon: Icon(Icons.history),
-            selectedIcon: Icon(Icons.history),
-            label: 'History',
+            icon: Icon(Icons.campaign_outlined),
+            selectedIcon: Icon(Icons.campaign),
+            label: 'Campaigns',
           ),
           NavigationDestination(
-            icon: Icon(Icons.insights_outlined),
-            selectedIcon: Icon(Icons.insights),
-            label: 'Insights',
+            icon: Icon(Icons.redeem_outlined),
+            selectedIcon: Icon(Icons.redeem),
+            label: 'Rewards',
           ),
           NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
-            label: 'Settings',
+            icon: Icon(Icons.monitor_heart_outlined),
+            selectedIcon: Icon(Icons.monitor_heart),
+            label: 'Progress',
           ),
         ],
       ),
