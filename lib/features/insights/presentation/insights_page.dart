@@ -1,13 +1,13 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
 import '../../../core/design_system/components/app_card.dart';
-import '../../../core/design_system/components/app_feedback.dart';
 import '../../../core/design_system/components/app_status_chip.dart';
 import '../../../core/design_system/extensions/app_theme_extension.dart';
 import '../../../core/design_system/tokens/app_tokens.dart';
 import '../../../core/preferences/app_settings_controller.dart';
+import '../../campaigns/presentation/campaign_formatters.dart';
+import '../../history/application/daily_step_history_controller.dart';
+import '../../history/domain/daily_step_record.dart';
 import '../../step_counter/domain/tracking_activity.dart';
 import '../../step_counter/presentation/step_counter_controller.dart';
 
@@ -15,11 +15,13 @@ class InsightsPage extends StatelessWidget {
   const InsightsPage({
     required this.controller,
     required this.settingsController,
+    required this.historyController,
     super.key,
   });
 
   final StepCounterController controller;
   final AppSettingsController settingsController;
+  final DailyStepHistoryController historyController;
 
   @override
   Widget build(BuildContext context) {
@@ -29,166 +31,100 @@ class InsightsPage extends StatelessWidget {
         animation: Listenable.merge(<Listenable>[
           controller,
           settingsController,
+          historyController,
         ]),
         builder: (context, child) {
+          final now = DateTime.now();
+          final monday = DateUtils.dateOnly(
+            now.subtract(Duration(days: now.weekday - 1)),
+          );
+          final previousMonday = monday.subtract(const Duration(days: 7));
+          final current = _between(monday, monday.add(const Duration(days: 6)));
+          final previous = _between(
+            previousMonday,
+            monday.subtract(const Duration(days: 1)),
+          );
+          final total = historyController.totalFor(current);
+          final previousTotal = historyController.totalFor(previous);
+          final best = historyController.bestDay(
+            historyController.recentRecords,
+          );
           final snapshot = controller.snapshot;
-          final goal = settingsController.dailyGoal;
-          final rawProgress = snapshot.displayedSteps / goal;
-          final visualProgress = rawProgress.clamp(0.0, 1.0);
-          final percentage = math.max((rawProgress * 100).round(), 0);
-
-          return CustomScrollView(
-            slivers: <Widget>[
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.xl,
-                  AppSpacing.lg,
-                  AppSpacing.xxl,
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.lg,
+              AppSpacing.lg,
+              AppSpacing.xxl,
+            ),
+            children: <Widget>[
+              Text(
+                'Insights',
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Real trends from confirmed steps recorded on this device.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: context.appTheme.textSecondary,
                 ),
-                sliver: SliverToBoxAdapter(
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        maxWidth: AppSizes.contentMaxWidth,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: <Widget>[
-                          Text(
-                            'Insights',
-                            style: Theme.of(context).textTheme.headlineMedium,
-                          ),
-                          const SizedBox(height: AppSpacing.xs),
-                          Text(
-                            'A clear view of today’s real activity data.',
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(
-                                  color: context.appTheme.textSecondary,
-                                ),
-                          ),
-                          const SizedBox(height: AppSpacing.xl),
-                          AppCard(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: <Widget>[
-                                Row(
-                                  children: <Widget>[
-                                    Expanded(
-                                      child: Text(
-                                        'Daily goal progress',
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.titleMedium,
-                                      ),
-                                    ),
-                                    AppStatusChip(
-                                      label: '$percentage%',
-                                      status: AppStatus.success,
-                                      icon: Icons.trending_up,
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: AppSpacing.lg),
-                                Semantics(
-                                  label: 'Daily goal completion',
-                                  value: '$percentage percent',
-                                  child: TweenAnimationBuilder<double>(
-                                    tween: Tween<double>(end: visualProgress),
-                                    duration: AppDurations.medium,
-                                    curve: Curves.easeOutCubic,
-                                    builder: (context, progress, child) =>
-                                        LinearProgressIndicator(
-                                          value: progress,
-                                          minHeight: AppSpacing.sm,
-                                          borderRadius: BorderRadius.circular(
-                                            AppRadii.pill,
-                                          ),
-                                        ),
-                                  ),
-                                ),
-                                const SizedBox(height: AppSpacing.md),
-                                Text(
-                                  '${snapshot.displayedSteps} of $goal steps',
-                                  style: Theme.of(context).textTheme.bodyMedium
-                                      ?.copyWith(
-                                        color: context.appTheme.textSecondary,
-                                      ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.lg),
-                          _TodayMetrics(
-                            displayed: snapshot.displayedSteps,
-                            confirmed: snapshot.confirmedSteps,
-                            validating: snapshot.provisionalSteps,
-                          ),
-                          const SizedBox(height: AppSpacing.lg),
-                          AppCard(
-                            child: Row(
-                              children: <Widget>[
-                                Container(
-                                  width: AppSizes.minTouchTarget,
-                                  height: AppSizes.minTouchTarget,
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.secondaryContainer,
-                                    borderRadius: BorderRadius.circular(
-                                      AppRadii.md,
-                                    ),
-                                  ),
-                                  child: Icon(
-                                    _activityIcon(snapshot.activity),
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.secondary,
-                                  ),
-                                ),
-                                const SizedBox(width: AppSpacing.md),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: <Widget>[
-                                      Text(
-                                        'Current activity',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall
-                                            ?.copyWith(
-                                              color: context
-                                                  .appTheme
-                                                  .textSecondary,
-                                            ),
-                                      ),
-                                      Text(
-                                        _activityLabel(snapshot.activity),
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.titleMedium,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.lg),
-                          const AppCard(
-                            child: AppEmptyState(
-                              title: 'More insights are coming',
-                              message:
-                                  'Keep tracking your walks. Weekly trends and progress comparisons will appear when historical tracking is available.',
-                              icon: Icons.insights_outlined,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              _MetricCard(
+                title: 'This week',
+                values: <String>[
+                  '${formatCampaignNumber(total)} confirmed steps',
+                  '${formatCampaignNumber(total ~/ 7)} daily average',
+                  '${historyController.activeDaysFor(current)} active days',
+                  '${historyController.goalDaysFor(current)} goal days',
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              if (previous.isNotEmpty && previousTotal > 0)
+                _Comparison(current: total, previous: previousTotal)
+              else
+                const _MetricCard(
+                  title: 'More weekly comparisons are coming',
+                  values: <String>[
+                    'Keep tracking your walks to build a meaningful trend.',
+                  ],
                 ),
+              const SizedBox(height: AppSpacing.md),
+              _MetricCard(
+                title: 'Consistency',
+                values: <String>[
+                  '${historyController.currentGoalStreak()} current goal-day streak',
+                  '${historyController.longestGoalStreak()} longest local streak',
+                  '${historyController.goalDaysFor(historyController.recordsForDays(30)) * 100 ~/ 30}% goal completion over 30 days',
+                ],
+              ),
+              if (best != null) ...<Widget>[
+                const SizedBox(height: AppSpacing.md),
+                _MetricCard(
+                  title: 'Best day',
+                  values: <String>[
+                    '${_date(best.date)} — ${formatCampaignNumber(best.confirmedSteps)} confirmed steps',
+                    best.goalReached
+                        ? 'Recorded goal reached'
+                        : 'Recorded goal not reached',
+                  ],
+                ),
+              ],
+              const SizedBox(height: AppSpacing.md),
+              _MetricCard(
+                title: 'Today',
+                values: <String>[
+                  '${formatCampaignNumber(snapshot.displayedSteps)} live displayed steps',
+                  '${formatCampaignNumber(snapshot.confirmedSteps)} confirmed',
+                  '${formatCampaignNumber(snapshot.provisionalSteps)} validating',
+                  'Daily goal: ${formatCampaignNumber(settingsController.dailyGoal)}',
+                  'Current activity: ${_activity(snapshot.activity)}',
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              const Text(
+                'Live displayed steps may include activity still being validated. '
+                'Historical totals use confirmed steps only.',
               ),
             ],
           );
@@ -197,86 +133,72 @@ class InsightsPage extends StatelessWidget {
     );
   }
 
-  String _activityLabel(TrackingActivity value) => switch (value) {
+  List<DailyStepRecord> _between(DateTime start, DateTime end) =>
+      historyController.recentRecords
+          .where((record) {
+            final date = DailyStepHistoryController.parseDate(record.date);
+            return !date.isBefore(start) && !date.isAfter(end);
+          })
+          .toList(growable: false);
+
+  String _activity(TrackingActivity activity) => switch (activity) {
     TrackingActivity.walking => 'Walking',
     TrackingActivity.running => 'Running',
-    TrackingActivity.still => 'Still',
     TrackingActivity.inVehicle => 'In vehicle',
     TrackingActivity.onBicycle => 'Cycling',
+    TrackingActivity.still => 'Still',
     TrackingActivity.unknown => 'Detecting activity',
   };
 
-  IconData _activityIcon(TrackingActivity value) => switch (value) {
-    TrackingActivity.walking => Icons.directions_walk,
-    TrackingActivity.running => Icons.directions_run,
-    TrackingActivity.still => Icons.pause_circle_outline,
-    TrackingActivity.inVehicle => Icons.directions_car,
-    TrackingActivity.onBicycle => Icons.directions_bike,
-    TrackingActivity.unknown => Icons.help_outline,
-  };
+  String _date(String value) {
+    final date = DailyStepHistoryController.parseDate(value);
+    return '${date.month}/${date.day}/${date.year}';
+  }
 }
 
-class _TodayMetrics extends StatelessWidget {
-  const _TodayMetrics({
-    required this.displayed,
-    required this.confirmed,
-    required this.validating,
-  });
-
-  final int displayed;
-  final int confirmed;
-  final int validating;
+class _Comparison extends StatelessWidget {
+  const _Comparison({required this.current, required this.previous});
+  final int current;
+  final int previous;
 
   @override
   Widget build(BuildContext context) {
-    final metrics = <({String label, int value, IconData icon})>[
-      (label: 'Today', value: displayed, icon: Icons.directions_walk_outlined),
-      (label: 'Confirmed', value: confirmed, icon: Icons.check_circle_outline),
-      (label: 'Validating', value: validating, icon: Icons.schedule),
-    ];
+    final difference = ((current - previous).abs() / previous * 100).round();
+    final more = current >= previous;
     return AppCard(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final narrow =
-              constraints.maxWidth < 300 ||
-              MediaQuery.textScalerOf(context).scale(1) > 1.3;
-          final columns = narrow ? 2 : 3;
-          final width =
-              (constraints.maxWidth - AppSpacing.sm * (columns - 1)) / columns;
-          return Wrap(
-            alignment: WrapAlignment.center,
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.lg,
-            children: <Widget>[
-              for (final metric in metrics)
-                SizedBox(
-                  width: width,
-                  child: Column(
-                    children: <Widget>[
-                      Icon(
-                        metric.icon,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      FittedBox(
-                        child: Text(
-                          '${metric.value}',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                      ),
-                      Text(
-                        metric.label,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: context.appTheme.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          );
-        },
+      child: Row(
+        children: <Widget>[
+          AppStatusChip(
+            label: more ? '$difference% more' : '$difference% fewer',
+            status: more ? AppStatus.success : AppStatus.neutral,
+            icon: more ? Icons.trending_up : Icons.trending_down,
+          ),
+          const SizedBox(width: AppSpacing.md),
+          const Expanded(child: Text('Compared with last week')),
+        ],
       ),
     );
   }
+}
+
+class _MetricCard extends StatelessWidget {
+  const _MetricCard({required this.title, required this.values});
+  final String title;
+  final List<String> values;
+
+  @override
+  Widget build(BuildContext context) => AppCard(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Text(title, style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: AppSpacing.sm),
+        for (final value in values)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+            child: Text(value),
+          ),
+      ],
+    ),
+  );
 }

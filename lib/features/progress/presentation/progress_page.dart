@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
 import '../../../core/design_system/components/app_card.dart';
@@ -13,17 +11,25 @@ import '../../insights/presentation/insights_page.dart';
 import '../../profile/presentation/profile_page.dart';
 import '../../settings/presentation/settings_page.dart';
 import '../../step_counter/presentation/step_counter_controller.dart';
+import '../../history/application/daily_step_history_controller.dart';
+import '../../campaigns/application/campaign_enrollment_controller.dart';
+import '../../achievements/domain/health_achievement.dart';
+import '../../campaigns/presentation/campaign_formatters.dart';
 
 class ProgressPage extends StatelessWidget {
   const ProgressPage({
     required this.controller,
     required this.settingsController,
+    required this.historyController,
+    required this.campaignController,
     required this.onLogout,
     super.key,
   });
 
   final StepCounterController controller;
   final AppSettingsController settingsController;
+  final DailyStepHistoryController historyController;
+  final CampaignEnrollmentController campaignController;
   final VoidCallback onLogout;
 
   void _openPage(BuildContext context, Widget page) {
@@ -47,14 +53,28 @@ class ProgressPage extends StatelessWidget {
         animation: Listenable.merge(<Listenable>[
           controller,
           settingsController,
+          historyController,
+          campaignController,
         ]),
         builder: (context, child) {
-          final snapshot = controller.snapshot;
-          final goal = settingsController.dailyGoal;
-          final percentage = math.max(
-            (snapshot.displayedSteps / goal * 100).round(),
-            0,
+          final now = DateTime.now();
+          final monday = DateUtils.dateOnly(
+            now.subtract(Duration(days: now.weekday - 1)),
           );
+          final weekRecords = historyController.recentRecords
+              .where((record) {
+                final date = DailyStepHistoryController.parseDate(record.date);
+                return !date.isBefore(monday) &&
+                    !date.isAfter(monday.add(const Duration(days: 6)));
+              })
+              .toList(growable: false);
+          final achievements = HealthAchievementEvaluator.evaluate(
+            records: historyController.recentRecords,
+            enrollments: campaignController.enrollments,
+          );
+          final unlocked = achievements
+              .where((achievement) => achievement.isUnlocked)
+              .length;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(
@@ -84,10 +104,13 @@ class ProgressPage extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xl),
                     _ProgressSummary(
-                      displayedSteps: snapshot.displayedSteps,
-                      dailyGoal: goal,
-                      percentage: percentage,
-                      confirmedSteps: snapshot.confirmedSteps,
+                      weeklyConfirmed: historyController.totalFor(weekRecords),
+                      weeklyGoalDays: historyController.goalDaysFor(
+                        weekRecords,
+                      ),
+                      currentStreak: historyController.currentGoalStreak(),
+                      lifetimeConfirmed:
+                          historyController.lifetimeConfirmedSteps,
                     ),
                     const SizedBox(height: AppSpacing.xl),
                     const _SectionTitle(title: 'Your progress'),
@@ -100,12 +123,14 @@ class ProgressPage extends StatelessWidget {
                             icon: Icons.history,
                             title: 'History',
                             description:
-                                'Review completed walking days and goals.',
+                                '${historyController.recordsForDays(7).length} days recorded locally.',
                             onTap: () => _openPage(
                               context,
                               _embeddedDestination(
                                 title: 'History',
-                                body: const HistoryPage(),
+                                body: HistoryPage(
+                                  controller: historyController,
+                                ),
                               ),
                             ),
                           ),
@@ -114,7 +139,7 @@ class ProgressPage extends StatelessWidget {
                             icon: Icons.insights_outlined,
                             title: 'Insights',
                             description:
-                                'Explore today’s activity and goal progress.',
+                                '${historyController.goalDaysFor(weekRecords)} goal days this week.',
                             onTap: () => _openPage(
                               context,
                               _embeddedDestination(
@@ -122,6 +147,7 @@ class ProgressPage extends StatelessWidget {
                                 body: InsightsPage(
                                   controller: controller,
                                   settingsController: settingsController,
+                                  historyController: historyController,
                                 ),
                               ),
                             ),
@@ -130,11 +156,14 @@ class ProgressPage extends StatelessWidget {
                           _DestinationRow(
                             icon: Icons.emoji_events_outlined,
                             title: 'Achievements',
-                            description:
-                                'See milestones reached with confirmed steps.',
+                            description: '$unlocked achievements unlocked.',
                             onTap: () => _openPage(
                               context,
-                              AchievementsPage(controller: controller),
+                              AchievementsPage(
+                                controller: controller,
+                                historyController: historyController,
+                                campaignController: campaignController,
+                              ),
                             ),
                           ),
                         ],
@@ -200,24 +229,30 @@ class ProgressPage extends StatelessWidget {
 
 class _ProgressSummary extends StatelessWidget {
   const _ProgressSummary({
-    required this.displayedSteps,
-    required this.dailyGoal,
-    required this.percentage,
-    required this.confirmedSteps,
+    required this.weeklyConfirmed,
+    required this.weeklyGoalDays,
+    required this.currentStreak,
+    required this.lifetimeConfirmed,
   });
 
-  final int displayedSteps;
-  final int dailyGoal;
-  final int percentage;
-  final int confirmedSteps;
+  final int weeklyConfirmed;
+  final int weeklyGoalDays;
+  final int currentStreak;
+  final int lifetimeConfirmed;
 
   @override
   Widget build(BuildContext context) {
     final metrics = <({String label, String value})>[
-      (label: 'Today', value: '$displayedSteps'),
-      (label: 'Daily goal', value: '$dailyGoal'),
-      (label: 'Goal complete', value: '$percentage%'),
-      (label: 'Confirmed', value: '$confirmedSteps'),
+      (
+        label: 'Confirmed this week',
+        value: formatCampaignNumber(weeklyConfirmed),
+      ),
+      (label: 'Goal days this week', value: '$weeklyGoalDays'),
+      (label: 'Current goal streak', value: '$currentStreak days'),
+      (
+        label: 'Recorded on this device',
+        value: formatCampaignNumber(lifetimeConfirmed),
+      ),
     ];
 
     return AppCard(
@@ -225,7 +260,7 @@ class _ProgressSummary extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           Text(
-            'Today’s summary',
+            'Local progress summary',
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: AppSpacing.lg),

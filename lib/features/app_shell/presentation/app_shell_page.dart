@@ -18,6 +18,8 @@ import '../../rewards/data/reward_wallet_repository.dart';
 import '../../settings/presentation/settings_page.dart';
 import '../../step_counter/presentation/step_counter_controller.dart';
 import '../../home/presentation/home_page.dart';
+import '../../history/application/daily_step_history_controller.dart';
+import '../../history/data/daily_step_history_repository.dart';
 
 class AppShellPage extends StatefulWidget {
   const AppShellPage({
@@ -26,6 +28,7 @@ class AppShellPage extends StatefulWidget {
     required this.enrollmentRepository,
     required this.rewardWalletRepository,
     required this.claimedRewardRepository,
+    required this.dailyStepHistoryRepository,
     required this.onLogout,
     super.key,
   });
@@ -35,6 +38,7 @@ class AppShellPage extends StatefulWidget {
   final CampaignEnrollmentRepository enrollmentRepository;
   final RewardWalletRepository rewardWalletRepository;
   final ClaimedRewardRepository claimedRewardRepository;
+  final DailyStepHistoryRepository dailyStepHistoryRepository;
   final VoidCallback onLogout;
 
   @override
@@ -47,6 +51,7 @@ class _AppShellPageState extends State<AppShellPage> {
   late final LocalCampaignRepository _campaignRepository;
   late final CampaignEnrollmentController _campaignController;
   late final RewardsController _rewardsController;
+  late final DailyStepHistoryController _historyController;
   int _selectedIndex = 0;
 
   @override
@@ -63,6 +68,11 @@ class _AppShellPageState extends State<AppShellPage> {
       widget.rewardWalletRepository,
       widget.claimedRewardRepository,
       _campaignController,
+    );
+    _historyController = DailyStepHistoryController(
+      widget.dailyStepHistoryRepository,
+      widget.stepController,
+      widget.settingsController,
     );
     _initializeControllers();
     _pages = <Widget>[
@@ -85,6 +95,8 @@ class _AppShellPageState extends State<AppShellPage> {
       ProgressPage(
         controller: widget.stepController,
         settingsController: widget.settingsController,
+        historyController: _historyController,
+        campaignController: _campaignController,
         onLogout: widget.onLogout,
       ),
     ];
@@ -92,6 +104,7 @@ class _AppShellPageState extends State<AppShellPage> {
 
   Future<void> _initializeControllers() async {
     await widget.stepController.initialize();
+    await _historyController.initialize();
     await _campaignController.initialize();
     await _rewardsController.initialize();
   }
@@ -105,6 +118,7 @@ class _AppShellPageState extends State<AppShellPage> {
   void dispose() {
     _rewardsController.dispose();
     _campaignController.dispose();
+    _historyController.dispose();
     super.dispose();
   }
 
@@ -124,8 +138,13 @@ class _AppShellPageState extends State<AppShellPage> {
         onProfile: () => _openPage(
           ProfilePage(settingsController: widget.settingsController),
         ),
-        onAchievements: () =>
-            _openPage(AchievementsPage(controller: widget.stepController)),
+        onAchievements: () => _openPage(
+          AchievementsPage(
+            controller: widget.stepController,
+            historyController: _historyController,
+            campaignController: _campaignController,
+          ),
+        ),
         onSettings: () => _openPage(
           SettingsPage(
             settingsController: widget.settingsController,
