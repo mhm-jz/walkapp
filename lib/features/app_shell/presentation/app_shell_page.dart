@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/preferences/app_settings_controller.dart';
 import '../../about/presentation/about_page.dart';
 import '../../achievements/presentation/achievements_page.dart';
+import '../../campaigns/data/local_campaign_repository.dart';
 import '../../campaigns/presentation/campaigns_page.dart';
 import '../../progress/presentation/progress_page.dart';
 import '../../profile/presentation/account_menu.dart';
@@ -43,7 +44,7 @@ class _AppShellPageState extends State<AppShellPage> {
         embedded: true,
         onOpenAccount: () => _scaffoldKey.currentState?.openEndDrawer(),
       ),
-      const CampaignsPage(),
+      CampaignsPage(repository: LocalCampaignRepository()),
       const RewardsPage(),
       ProgressPage(
         controller: widget.stepController,

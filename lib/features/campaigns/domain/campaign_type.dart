@@ -1,0 +1,1 @@
+enum CampaignType { stepTarget, dailyGoalConsistency }
