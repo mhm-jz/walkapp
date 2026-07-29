@@ -17,7 +17,7 @@ import '../../rewards/data/local_reward_catalog_repository.dart';
 import '../../rewards/data/reward_wallet_repository.dart';
 import '../../settings/presentation/settings_page.dart';
 import '../../step_counter/presentation/step_counter_controller.dart';
-import '../../step_counter/presentation/step_counter_page.dart';
+import '../../home/presentation/home_page.dart';
 
 class AppShellPage extends StatefulWidget {
   const AppShellPage({
@@ -58,20 +58,22 @@ class _AppShellPageState extends State<AppShellPage> {
       _campaignRepository,
       widget.stepController,
     );
-    _campaignController.initialize();
     _rewardsController = RewardsController(
       LocalRewardCatalogRepository(),
       widget.rewardWalletRepository,
       widget.claimedRewardRepository,
       _campaignController,
     );
-    _rewardsController.initialize();
+    _initializeControllers();
     _pages = <Widget>[
-      StepCounterPage(
-        controller: widget.stepController,
+      HomePage(
+        stepController: widget.stepController,
         settingsController: widget.settingsController,
-        embedded: true,
         onOpenAccount: () => _scaffoldKey.currentState?.openEndDrawer(),
+        campaignController: _campaignController,
+        rewardsController: _rewardsController,
+        onOpenCampaigns: () => _selectTab(1),
+        onOpenRewards: () => _selectTab(2),
       ),
       CampaignsPage(
         repository: _campaignRepository,
@@ -86,6 +88,17 @@ class _AppShellPageState extends State<AppShellPage> {
         onLogout: widget.onLogout,
       ),
     ];
+  }
+
+  Future<void> _initializeControllers() async {
+    await widget.stepController.initialize();
+    await _campaignController.initialize();
+    await _rewardsController.initialize();
+  }
+
+  void _selectTab(int index) {
+    if (_selectedIndex == index) return;
+    setState(() => _selectedIndex = index);
   }
 
   @override
@@ -126,8 +139,7 @@ class _AppShellPageState extends State<AppShellPage> {
         selectedIndex: _selectedIndex,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         onDestinationSelected: (index) {
-          if (_selectedIndex == index) return;
-          setState(() => _selectedIndex = index);
+          _selectTab(index);
         },
         destinations: const <NavigationDestination>[
           NavigationDestination(
