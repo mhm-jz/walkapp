@@ -58,4 +58,15 @@ final class HiveClaimedRewardRepository implements ClaimedRewardRepository {
     );
     await _box.flush();
   }
+
+  @override
+  Future<void> removeClaimedReward(String id) async {
+    final claims = (await loadClaimedRewards()).toList()
+      ..removeWhere((item) => item.id == id);
+    await _box.put(
+      _claimsKey,
+      claims.map((item) => item.toMap()).toList(growable: false),
+    );
+    await _box.flush();
+  }
 }

@@ -156,7 +156,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                       constraints: const BoxConstraints(maxWidth: 560),
                       child: AppButton(
                         label: _controller.isLastStep
-                            ? 'Start Walking'
+                            ? 'Continue to account setup'
                             : 'Continue',
                         icon: Icons.arrow_forward,
                         expanded: true,
@@ -352,13 +352,29 @@ class _PermissionStep extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
           Text(_permissionMessage(controller.permissionStatus)),
           const SizedBox(height: AppSpacing.md),
-          AppButton(
-            label: controller.permissionStatus == null
-                ? 'Allow Activity Access'
-                : 'Retry Activity Access',
-            isLoading: controller.isBusy,
-            onPressed: controller.isBusy ? null : controller.requestPermission,
-          ),
+          if (controller.permissionStatus !=
+              ActivityAccessStatus.permanentlyDenied)
+            AppButton(
+              label: controller.permissionStatus == null
+                  ? 'Allow Activity Access'
+                  : 'Retry Activity Access',
+              isLoading: controller.isBusy,
+              onPressed: controller.isBusy
+                  ? null
+                  : controller.requestPermission,
+            ),
+          if (controller.permissionStatus ==
+              ActivityAccessStatus.permanentlyDenied) ...<Widget>[
+            const Text(
+              'Android: Settings → Apps → WalkApp → Permissions → Physical activity, then allow access.',
+            ),
+            const SizedBox(height: AppSpacing.md),
+            AppButton(
+              label: 'Continue without tracking',
+              variant: AppButtonVariant.outlined,
+              onPressed: controller.isBusy ? null : controller.next,
+            ),
+          ],
         ],
       ),
     ),

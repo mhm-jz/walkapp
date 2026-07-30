@@ -30,6 +30,7 @@ import '../../rewards/presentation/my_rewards_page.dart';
 import '../../rewards/presentation/coupon_details_page.dart';
 import '../../history/presentation/history_page.dart';
 import '../../../core/design_system/components/app_feedback.dart';
+import '../../../core/design_system/components/embedded_destination_page.dart';
 
 class AppShellPage extends StatefulWidget {
   const AppShellPage({
@@ -226,7 +227,15 @@ class _AppShellPageState extends State<AppShellPage>
           ),
         );
       case AppNotificationDestination.history:
-        _openPage(HistoryPage(controller: _historyController));
+        _openPage(
+          EmbeddedDestinationPage(
+            title: 'History',
+            bodyBuilder: (showHeading) => HistoryPage(
+              controller: _historyController,
+              showHeading: showHeading,
+            ),
+          ),
+        );
       case AppNotificationDestination.none:
         break;
     }
@@ -242,7 +251,7 @@ class _AppShellPageState extends State<AppShellPage>
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-      body: _pages[_selectedIndex],
+      body: IndexedStack(index: _selectedIndex, children: _pages),
       endDrawer: AccountMenu(
         settingsController: widget.settingsController,
         onProfile: () => _openPage(
@@ -256,9 +265,13 @@ class _AppShellPageState extends State<AppShellPage>
           ),
         ),
         onSettings: () => _openPage(
-          SettingsPage(
-            settingsController: widget.settingsController,
-            onLogout: widget.onLogout,
+          EmbeddedDestinationPage(
+            title: 'Settings',
+            bodyBuilder: (showHeading) => SettingsPage(
+              settingsController: widget.settingsController,
+              onLogout: widget.onLogout,
+              showHeading: showHeading,
+            ),
           ),
         ),
         onAbout: () => _openPage(const AboutPage()),

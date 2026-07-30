@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 import '../../../core/design_system/components/app_button.dart';
 import '../../../core/design_system/components/app_feedback.dart';
 import '../../../core/design_system/components/app_fields.dart';
-import '../../../core/design_system/components/app_selection.dart';
 import '../../../core/design_system/tokens/app_tokens.dart';
 import '../../../core/preferences/app_settings_controller.dart';
 import 'auth_form_controller.dart';
 import 'widgets/auth_brand_header.dart';
 import 'widgets/auth_form_container.dart';
+import 'widgets/auth_prototype_notice.dart';
 import 'widgets/auth_theme_action.dart';
 
 class LoginPage extends StatefulWidget {
@@ -73,6 +73,8 @@ class _LoginPageState extends State<LoginPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
+                const AuthPrototypeNotice(),
+                const SizedBox(height: AppSpacing.lg),
                 AppTextField(
                   controller: _emailController,
                   label: 'Email address',
@@ -102,33 +104,18 @@ class _LoginPageState extends State<LoginPage> {
                   onChanged: (_) => _formController.clearError('password'),
                   onSubmitted: (_) => _submit(),
                 ),
-                const SizedBox(height: AppSpacing.xs),
-                Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: <Widget>[
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 190),
-                      child: AppCheckbox(
-                        value: _formController.rememberMe,
-                        onChanged: _formController.isLoading
-                            ? null
-                            : (value) =>
-                                  _formController.setRememberMe(value ?? false),
-                        label: 'Remember me',
-                      ),
-                    ),
-                    AppButton(
-                      label: 'Forgot password?',
-                      variant: AppButtonVariant.text,
-                      onPressed: _formController.isLoading
-                          ? null
-                          : () => AppSnackbar.show(
-                              context,
-                              'Password recovery will be available when authentication is connected.',
-                            ),
-                    ),
-                  ],
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: AppButton(
+                    label: 'Forgot password?',
+                    variant: AppButtonVariant.text,
+                    onPressed: _formController.isLoading
+                        ? null
+                        : () => AppSnackbar.show(
+                            context,
+                            'Password recovery will be available when authentication is connected.',
+                          ),
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 AppButton(

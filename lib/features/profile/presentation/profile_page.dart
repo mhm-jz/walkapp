@@ -240,27 +240,52 @@ class _ProfilePageState extends State<ProfilePage> {
                                       onSubmitted: (_) => _save(),
                                     ),
                                     const SizedBox(height: AppSpacing.xl),
-                                    Row(
-                                      children: <Widget>[
-                                        Expanded(
-                                          child: AppButton(
-                                            label: 'Cancel',
-                                            variant: AppButtonVariant.outlined,
-                                            onPressed: _isSaving
-                                                ? null
-                                                : _cancelEditing,
-                                          ),
-                                        ),
-                                        const SizedBox(width: AppSpacing.md),
-                                        Expanded(
-                                          child: AppButton(
-                                            label: 'Save',
-                                            icon: Icons.check,
-                                            isLoading: _isSaving,
-                                            onPressed: _isSaving ? null : _save,
-                                          ),
-                                        ),
-                                      ],
+                                    LayoutBuilder(
+                                      builder: (context, constraints) {
+                                        final stack =
+                                            constraints.maxWidth < 360 ||
+                                            MediaQuery.textScalerOf(
+                                                  context,
+                                                ).scale(1) >
+                                                1.3;
+                                        final cancel = AppButton(
+                                          label: 'Cancel',
+                                          expanded: stack,
+                                          variant: AppButtonVariant.outlined,
+                                          onPressed: _isSaving
+                                              ? null
+                                              : _cancelEditing,
+                                        );
+                                        final save = AppButton(
+                                          label: 'Save',
+                                          icon: Icons.check,
+                                          expanded: stack,
+                                          isLoading: _isSaving,
+                                          onPressed: _isSaving ? null : _save,
+                                        );
+                                        if (stack) {
+                                          return Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.stretch,
+                                            children: <Widget>[
+                                              cancel,
+                                              const SizedBox(
+                                                height: AppSpacing.sm,
+                                              ),
+                                              save,
+                                            ],
+                                          );
+                                        }
+                                        return Row(
+                                          children: <Widget>[
+                                            Expanded(child: cancel),
+                                            const SizedBox(
+                                              width: AppSpacing.md,
+                                            ),
+                                            Expanded(child: save),
+                                          ],
+                                        );
+                                      },
                                     ),
                                   ],
                                 ),

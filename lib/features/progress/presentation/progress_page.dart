@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/design_system/components/app_card.dart';
+import '../../../core/design_system/components/app_feedback.dart';
+import '../../../core/design_system/components/embedded_destination_page.dart';
 import '../../../core/design_system/extensions/app_theme_extension.dart';
 import '../../../core/design_system/tokens/app_tokens.dart';
 import '../../../core/preferences/app_settings_controller.dart';
 import '../../about/presentation/about_page.dart';
 import '../../achievements/presentation/achievements_page.dart';
 import '../../history/presentation/history_page.dart';
+import '../../history/domain/daily_step_record.dart';
 import '../../insights/presentation/insights_page.dart';
 import '../../profile/presentation/profile_page.dart';
 import '../../settings/presentation/settings_page.dart';
@@ -43,13 +46,6 @@ class ProgressPage extends StatelessWidget {
     ).push<void>(MaterialPageRoute<void>(builder: (context) => page));
   }
 
-  Widget _embeddedDestination({required String title, required Widget body}) {
-    return Scaffold(
-      appBar: AppBar(leading: const BackButton(), title: Text(title)),
-      body: body,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -63,19 +59,28 @@ class ProgressPage extends StatelessWidget {
           notificationController,
         ]),
         builder: (context, child) {
+          final historyReady =
+              historyController.viewState == DailyHistoryViewState.ready;
           final now = DateTime.now();
           final monday = DateUtils.dateOnly(
             now.subtract(Duration(days: now.weekday - 1)),
           );
-          final weekRecords = historyController.recentRecords
-              .where((record) {
-                final date = DailyStepHistoryController.parseDate(record.date);
-                return !date.isBefore(monday) &&
-                    !date.isAfter(monday.add(const Duration(days: 6)));
-              })
-              .toList(growable: false);
+          final weekRecords =
+              (historyReady
+                      ? historyController.recentRecords
+                      : const <DailyStepRecord>[])
+                  .where((record) {
+                    final date = DailyStepHistoryController.parseDate(
+                      record.date,
+                    );
+                    return !date.isBefore(monday) &&
+                        !date.isAfter(monday.add(const Duration(days: 6)));
+                  })
+                  .toList(growable: false);
           final achievements = HealthAchievementEvaluator.evaluate(
-            records: historyController.recentRecords,
+            records: historyReady
+                ? historyController.recentRecords
+                : const <DailyStepRecord>[],
             enrollments: campaignController.enrollments,
           );
           final unlocked = achievements
@@ -109,15 +114,36 @@ class ProgressPage extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xl),
-                    _ProgressSummary(
-                      weeklyConfirmed: historyController.totalFor(weekRecords),
-                      weeklyGoalDays: historyController.goalDaysFor(
-                        weekRecords,
+                    if (historyController.viewState ==
+                        DailyHistoryViewState.loading)
+                      const AppCard(
+                        child: AppLoadingIndicator(
+                          label: 'Loading progress summary',
+                        ),
+                      )
+                    else if (historyController.viewState ==
+                        DailyHistoryViewState.error)
+                      AppCard(
+                        child: AppErrorView(
+                          message:
+                              historyController.userMessage ??
+                              'Progress history is temporarily unavailable.',
+                          compact: true,
+                          onRetry: historyController.retry,
+                        ),
+                      )
+                    else
+                      _ProgressSummary(
+                        weeklyConfirmed: historyController.totalFor(
+                          weekRecords,
+                        ),
+                        weeklyGoalDays: historyController.goalDaysFor(
+                          weekRecords,
+                        ),
+                        currentStreak: historyController.currentGoalStreak(),
+                        lifetimeConfirmed:
+                            historyController.lifetimeConfirmedSteps,
                       ),
-                      currentStreak: historyController.currentGoalStreak(),
-                      lifetimeConfirmed:
-                          historyController.lifetimeConfirmedSteps,
-                    ),
                     const SizedBox(height: AppSpacing.xl),
                     const _SectionTitle(title: 'Your progress'),
                     const SizedBox(height: AppSpacing.sm),
@@ -136,14 +162,16 @@ class ProgressPage extends StatelessWidget {
                           _DestinationRow(
                             icon: Icons.history,
                             title: 'History',
-                            description:
-                                '${historyController.recordsForDays(7).length} days recorded locally.',
+                            description: historyReady
+                                ? '${historyController.recordsForDays(7).length} days recorded locally.'
+                                : 'History metrics are currently unavailable.',
                             onTap: () => _openPage(
                               context,
-                              _embeddedDestination(
+                              EmbeddedDestinationPage(
                                 title: 'History',
-                                body: HistoryPage(
+                                bodyBuilder: (showHeading) => HistoryPage(
                                   controller: historyController,
+                                  showHeading: showHeading,
                                 ),
                               ),
                             ),
@@ -152,13 +180,14 @@ class ProgressPage extends StatelessWidget {
                           _DestinationRow(
                             icon: Icons.insights_outlined,
                             title: 'Insights',
-                            description:
-                                '${historyController.goalDaysFor(weekRecords)} goal days this week.',
+                            description: historyReady
+                                ? '${historyController.goalDaysFor(weekRecords)} goal days this week.'
+                                : 'Insights will show when history is available.',
                             onTap: () => _openPage(
                               context,
-                              _embeddedDestination(
+                              EmbeddedDestinationPage(
                                 title: 'Insights',
-                                body: InsightsPage(
+                                bodyBuilder: (showHeading) => InsightsPage(
                                   controller: controller,
                                   settingsController: settingsController,
                                   historyController: historyController,
@@ -210,11 +239,12 @@ class ProgressPage extends StatelessWidget {
                                 'Adjust your goal, theme, and preferences.',
                             onTap: () => _openPage(
                               context,
-                              _embeddedDestination(
+                              EmbeddedDestinationPage(
                                 title: 'Settings',
-                                body: SettingsPage(
+                                bodyBuilder: (showHeading) => SettingsPage(
                                   settingsController: settingsController,
                                   onLogout: onLogout,
+                                  showHeading: showHeading,
                                 ),
                               ),
                             ),

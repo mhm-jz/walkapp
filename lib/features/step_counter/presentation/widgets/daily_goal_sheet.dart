@@ -140,20 +140,40 @@ class _DailyGoalSheetState extends State<DailyGoalSheet> {
             ],
           ),
           const SizedBox(height: AppSpacing.xl),
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: AppButton(
-                  label: 'Cancel',
-                  variant: AppButtonVariant.outlined,
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: AppButton(label: 'Save goal', onPressed: _save),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stack =
+                  constraints.maxWidth < 360 ||
+                  MediaQuery.textScalerOf(context).scale(1) > 1.3;
+              final cancel = AppButton(
+                label: 'Cancel',
+                expanded: stack,
+                variant: AppButtonVariant.outlined,
+                onPressed: () => Navigator.of(context).pop(),
+              );
+              final save = AppButton(
+                label: 'Save goal',
+                expanded: stack,
+                onPressed: _save,
+              );
+              if (stack) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    cancel,
+                    const SizedBox(height: AppSpacing.sm),
+                    save,
+                  ],
+                );
+              }
+              return Row(
+                children: <Widget>[
+                  Expanded(child: cancel),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(child: save),
+                ],
+              );
+            },
           ),
         ],
       ),

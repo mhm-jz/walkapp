@@ -209,6 +209,36 @@ abstract final class AppTheme {
           textSecondary: dark
               ? AppColors.darkTextSecondary
               : AppColors.lightTextSecondary,
+          successForeground: dark
+              ? const Color(0xFFBBF7D0)
+              : const Color(0xFF14532D),
+          successContainer: dark
+              ? const Color(0xFF14532D)
+              : const Color(0xFFDCFCE7),
+          warningForeground: dark
+              ? const Color(0xFFFDE68A)
+              : const Color(0xFF78350F),
+          warningContainer: dark
+              ? const Color(0xFF78350F)
+              : const Color(0xFFFEF3C7),
+          errorForeground: dark
+              ? const Color(0xFFFECACA)
+              : const Color(0xFF7F1D1D),
+          errorContainer: dark
+              ? const Color(0xFF7F1D1D)
+              : const Color(0xFFFEE2E2),
+          informationForeground: dark
+              ? const Color(0xFFCFFAFE)
+              : const Color(0xFF164E63),
+          informationContainer: dark
+              ? const Color(0xFF164E63)
+              : const Color(0xFFCFFAFE),
+          neutralForeground: dark
+              ? const Color(0xFFE2E8F0)
+              : const Color(0xFF334155),
+          neutralContainer: dark
+              ? const Color(0xFF334155)
+              : const Color(0xFFE2E8F0),
         ),
       ],
     );

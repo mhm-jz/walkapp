@@ -9,6 +9,7 @@ import '../../../core/preferences/app_settings_controller.dart';
 import 'auth_form_controller.dart';
 import 'widgets/auth_brand_header.dart';
 import 'widgets/auth_form_container.dart';
+import 'widgets/auth_prototype_notice.dart';
 import 'widgets/auth_theme_action.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -79,6 +80,8 @@ class _RegisterPageState extends State<RegisterPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
+                const AuthPrototypeNotice(),
+                const SizedBox(height: AppSpacing.lg),
                 AppTextField(
                   controller: _nameController,
                   label: 'Full name',

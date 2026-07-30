@@ -9,6 +9,8 @@ abstract interface class ClaimedRewardRepository {
   });
 
   Future<void> updateClaimedReward(ClaimedReward reward);
+
+  Future<void> removeClaimedReward(String id);
 }
 
 final class InMemoryClaimedRewardRepository implements ClaimedRewardRepository {
@@ -33,5 +35,10 @@ final class InMemoryClaimedRewardRepository implements ClaimedRewardRepository {
   Future<void> updateClaimedReward(ClaimedReward reward) async {
     final index = _items.indexWhere((item) => item.id == reward.id);
     if (index >= 0) _items[index] = reward;
+  }
+
+  @override
+  Future<void> removeClaimedReward(String id) async {
+    _items.removeWhere((item) => item.id == id);
   }
 }

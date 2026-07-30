@@ -18,19 +18,22 @@ class AppStatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final base = switch (status) {
-      AppStatus.success => context.appTheme.success,
-      AppStatus.info => scheme.secondary,
-      AppStatus.warning => context.appTheme.warning,
-      AppStatus.error => scheme.error,
-      AppStatus.neutral => scheme.onSurfaceVariant,
+    final colors = context.appTheme;
+    final (foreground, container) = switch (status) {
+      AppStatus.success => (colors.successForeground, colors.successContainer),
+      AppStatus.info => (
+        colors.informationForeground,
+        colors.informationContainer,
+      ),
+      AppStatus.warning => (colors.warningForeground, colors.warningContainer),
+      AppStatus.error => (colors.errorForeground, colors.errorContainer),
+      AppStatus.neutral => (colors.neutralForeground, colors.neutralContainer),
     };
     return Chip(
-      avatar: icon == null ? null : Icon(icon, size: 18, color: base),
+      avatar: icon == null ? null : Icon(icon, size: 18, color: foreground),
       label: Text(label),
-      backgroundColor: base.withValues(alpha: 0.14),
-      labelStyle: TextStyle(color: base, fontWeight: FontWeight.w600),
+      backgroundColor: container,
+      labelStyle: TextStyle(color: foreground, fontWeight: FontWeight.w600),
     );
   }
 }

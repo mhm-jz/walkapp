@@ -357,29 +357,62 @@ class _FeaturedReward extends StatelessWidget {
   final VoidCallback onView;
 
   @override
-  Widget build(BuildContext context) => AppCard(
-    color: Theme.of(context).colorScheme.secondaryContainer,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        Text(reward.brandName, style: Theme.of(context).textTheme.labelLarge),
-        Text(reward.title, style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: AppSpacing.sm),
-        Text(reward.discountLabel),
-        Text('${reward.requiredPoints} points'),
-        const SizedBox(height: AppSpacing.sm),
-        const Align(
-          alignment: Alignment.centerLeft,
-          child: AppStatusChip(label: 'Available', status: AppStatus.success),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: AppButton(label: 'View Reward', onPressed: onView),
-        ),
-      ],
-    ),
-  );
+  Widget build(BuildContext context) {
+    final status = controller.statusFor(reward);
+    final needed = reward.requiredPoints - controller.wallet.balance;
+    final (label, supportingMessage, chipStatus) = switch (status) {
+      RewardStatus.available => (
+        'Available',
+        'You have enough points to redeem this reward.',
+        AppStatus.success,
+      ),
+      RewardStatus.insufficientPoints => (
+        'Insufficient points',
+        '${needed.clamp(0, reward.requiredPoints)} more points needed.',
+        AppStatus.warning,
+      ),
+      RewardStatus.claimed => (
+        'Claimed',
+        'This limited reward has already been claimed.',
+        AppStatus.neutral,
+      ),
+      RewardStatus.unavailable => (
+        'Unavailable',
+        'This reward is not currently available.',
+        AppStatus.neutral,
+      ),
+      RewardStatus.expired => (
+        'Expired',
+        'This reward has expired.',
+        AppStatus.neutral,
+      ),
+    };
+    return AppCard(
+      color: Theme.of(context).colorScheme.secondaryContainer,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Text(reward.brandName, style: Theme.of(context).textTheme.labelLarge),
+          Text(reward.title, style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: AppSpacing.sm),
+          Text(reward.discountLabel),
+          Text('${reward.requiredPoints} points'),
+          const SizedBox(height: AppSpacing.sm),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: AppStatusChip(label: label, status: chipStatus),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(supportingMessage),
+          const SizedBox(height: AppSpacing.md),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: AppButton(label: 'View Reward', onPressed: onView),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _Filters extends StatelessWidget {

@@ -185,6 +185,20 @@ class _ActiveCampaignPageState extends State<ActiveCampaignPage> {
               child: AppLoadingIndicator(label: 'Loading campaign'),
             );
           }
+          if (widget.controller.viewState ==
+              CampaignEnrollmentViewState.error) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: AppErrorView(
+                  message:
+                      widget.controller.userMessage ??
+                      'Campaign enrollment could not be loaded.',
+                  onRetry: widget.controller.initialize,
+                ),
+              ),
+            );
+          }
           if (enrollment == null) {
             return const Center(
               child: AppEmptyState(

@@ -14,11 +14,13 @@ class SettingsPage extends StatelessWidget {
   const SettingsPage({
     required this.settingsController,
     required this.onLogout,
+    this.showHeading = true,
     super.key,
   });
 
   final AppSettingsController settingsController;
   final VoidCallback onLogout;
+  final bool showHeading;
 
   Future<void> _editGoal(BuildContext context) async {
     final goal = await DailyGoalSheet.show(
@@ -89,11 +91,13 @@ class SettingsPage extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
-                        Text(
-                          'Settings',
-                          style: Theme.of(context).textTheme.headlineMedium,
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
+                        if (showHeading) ...<Widget>[
+                          Text(
+                            'Settings',
+                            style: Theme.of(context).textTheme.headlineMedium,
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                        ],
                         Text(
                           'Personalize your walking experience.',
                           style: Theme.of(context).textTheme.bodyMedium

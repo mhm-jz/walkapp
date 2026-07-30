@@ -12,8 +12,13 @@ import '../application/daily_step_history_controller.dart';
 import '../domain/daily_step_record.dart';
 
 class HistoryPage extends StatefulWidget {
-  const HistoryPage({required this.controller, super.key});
+  const HistoryPage({
+    required this.controller,
+    this.showHeading = true,
+    super.key,
+  });
   final DailyStepHistoryController controller;
+  final bool showHeading;
 
   @override
   State<HistoryPage> createState() => _HistoryPageState();
@@ -52,11 +57,13 @@ class _HistoryPageState extends State<HistoryPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: <Widget>[
-                          Text(
-                            'History',
-                            style: Theme.of(context).textTheme.headlineMedium,
-                          ),
-                          const SizedBox(height: AppSpacing.xs),
+                          if (widget.showHeading) ...<Widget>[
+                            Text(
+                              'History',
+                              style: Theme.of(context).textTheme.headlineMedium,
+                            ),
+                            const SizedBox(height: AppSpacing.xs),
+                          ],
                           Text(
                             'Review your confirmed walking progress over time.',
                             style: Theme.of(context).textTheme.bodyMedium
@@ -227,63 +234,106 @@ class _StepChart extends StatelessWidget {
       1,
       (value, item) => math.max(value, item.record?.confirmedSteps ?? 0),
     );
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final chartHeight = (190 + ((textScale - 1) * 56)).clamp(190.0, 270.0);
+    final total = days.fold<int>(
+      0,
+      (value, item) => value + (item.record?.confirmedSteps ?? 0),
+    );
     return AppCard(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: SizedBox(
-          height: 190,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: <Widget>[
-              for (final item in days)
-                Semantics(
-                  label:
-                      '${_friendlyDate(item.date)}, ${item.record?.confirmedSteps ?? 0} confirmed steps',
-                  child: SizedBox(
-                    width: days.length == 7 ? 48 : 34,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: <Widget>[
-                        Text(
-                          formatCampaignNumber(
-                            item.record?.confirmedSteps ?? 0,
+      child: Semantics(
+        container: true,
+        explicitChildNodes: true,
+        label:
+            'Confirmed steps chart for ${days.length} days. '
+            '${formatCampaignNumber(total)} total confirmed steps. '
+            'The daily history list below provides complete details.',
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            height: chartHeight,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: <Widget>[
+                for (final item in days)
+                  Semantics(
+                    label:
+                        '${_friendlyDate(item.date)}, ${item.record?.confirmedSteps ?? 0} confirmed steps',
+                    child: Container(
+                      width: days.length == 7 ? 48 : 34,
+                      decoration: DateUtils.isSameDay(item.date, DateTime.now())
+                          ? BoxDecoration(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .primaryContainer
+                                  .withValues(alpha: .45),
+                              borderRadius: BorderRadius.circular(AppRadii.md),
+                              border: Border.all(
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            )
+                          : null,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: <Widget>[
+                          Text(
+                            formatCampaignNumber(
+                              item.record?.confirmedSteps ?? 0,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.fade,
+                            style: Theme.of(context).textTheme.labelSmall,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.fade,
-                          style: Theme.of(context).textTheme.labelSmall,
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        Container(
-                          width: 18,
-                          height:
-                              110 *
-                              ((item.record?.confirmedSteps ?? 0) / maximum),
-                          constraints: const BoxConstraints(minHeight: 2),
-                          decoration: BoxDecoration(
-                            color:
-                                DateUtils.isSameDay(item.date, DateTime.now())
-                                ? Theme.of(context).colorScheme.secondary
-                                : Theme.of(context).colorScheme.primary,
-                            borderRadius: BorderRadius.circular(AppRadii.md),
-                            border: item.record == null
-                                ? Border.all(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.outline,
-                                  )
-                                : null,
+                          const SizedBox(height: AppSpacing.xs),
+                          Container(
+                            width: 18,
+                            height:
+                                110 *
+                                ((item.record?.confirmedSteps ?? 0) / maximum),
+                            constraints: const BoxConstraints(minHeight: 2),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primary
+                                  .withValues(
+                                    alpha:
+                                        DateUtils.isSameDay(
+                                          item.date,
+                                          DateTime.now(),
+                                        )
+                                        ? 1
+                                        : .72,
+                                  ),
+                              borderRadius: BorderRadius.circular(AppRadii.md),
+                              border: item.record == null
+                                  ? Border.all(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.outline,
+                                    )
+                                  : null,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        Text(
-                          '${item.date.day}',
-                          style: Theme.of(context).textTheme.labelSmall,
-                        ),
-                      ],
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            DateUtils.isSameDay(item.date, DateTime.now())
+                                ? 'Today'
+                                : '${item.date.day}',
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(
+                                  fontWeight:
+                                      DateUtils.isSameDay(
+                                        item.date,
+                                        DateTime.now(),
+                                      )
+                                      ? FontWeight.w700
+                                      : FontWeight.w400,
+                                ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
