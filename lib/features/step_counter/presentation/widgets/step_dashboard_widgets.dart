@@ -330,7 +330,6 @@ class StepStatsSection extends StatelessWidget {
 class ActivitySummaryCard extends StatelessWidget {
   const ActivitySummaryCard({
     required this.activity,
-    required this.confidence,
     required this.sensorReady,
     required this.isTracking,
     required this.provisionalSteps,
@@ -338,7 +337,6 @@ class ActivitySummaryCard extends StatelessWidget {
   });
 
   final TrackingActivity activity;
-  final TrackingConfidence confidence;
   final bool sensorReady;
   final bool isTracking;
   final int provisionalSteps;
@@ -381,7 +379,7 @@ class ActivitySummaryCard extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      _confidenceLabel(confidence),
+                      'Transition-based detection',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: context.appTheme.textSecondary,
                       ),
@@ -466,12 +464,6 @@ class ActivitySummaryCard extends StatelessWidget {
       ),
     };
   }
-
-  String _confidenceLabel(TrackingConfidence value) => switch (value) {
-    TrackingConfidence.low => 'Low confidence',
-    TrackingConfidence.medium => 'Medium confidence',
-    TrackingConfidence.high => 'High confidence',
-  };
 }
 
 class TrackingActionArea extends StatelessWidget {

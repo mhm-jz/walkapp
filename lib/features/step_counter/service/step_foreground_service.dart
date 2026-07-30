@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter_activity_recognition/flutter_activity_recognition.dart';
+import 'package:activity_transition_bridge/activity_transition_bridge.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -38,7 +38,7 @@ final class StepForegroundService
         playSound: false,
       ),
       foregroundTaskOptions: ForegroundTaskOptions(
-        eventAction: ForegroundTaskEventAction.nothing(),
+        eventAction: ForegroundTaskEventAction.repeat(1000),
         autoRunOnBoot: false,
         autoRunOnMyPackageReplaced: false,
         allowWakeLock: true,
@@ -136,16 +136,11 @@ final class StepForegroundService
   @override
   Future<ActivityAccessStatus> requestActivityAccess() async {
     if (!Platform.isAndroid) return ActivityAccessStatus.unsupported;
-    var permission = await FlutterActivityRecognition.instance
-        .checkPermission();
-    if (permission == ActivityPermission.DENIED) {
-      permission = await FlutterActivityRecognition.instance
-          .requestPermission();
-    }
+    final permission =
+        await ActivityTransitionBridge.requestActivityRecognitionPermission();
     return switch (permission) {
-      ActivityPermission.GRANTED => ActivityAccessStatus.granted,
-      ActivityPermission.PERMANENTLY_DENIED =>
-        ActivityAccessStatus.permanentlyDenied,
+      'granted' => ActivityAccessStatus.granted,
+      'permanentlyDenied' => ActivityAccessStatus.permanentlyDenied,
       _ => ActivityAccessStatus.denied,
     };
   }

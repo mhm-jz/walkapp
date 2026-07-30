@@ -119,7 +119,6 @@ class _StepCounterPageState extends State<StepCounterPage> {
                             const SizedBox(height: AppSpacing.lg),
                             ActivitySummaryCard(
                               activity: snapshot.activity,
-                              confidence: snapshot.confidence,
                               sensorReady: snapshot.sensorReady,
                               isTracking: snapshot.isTracking,
                               provisionalSteps: snapshot.provisionalSteps,

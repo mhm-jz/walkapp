@@ -1,0 +1,19 @@
+name: activity_transition_bridge
+description: Android Activity Transition bridge for the WalkApp experiment.
+version: 0.0.1
+publish_to: none
+
+environment:
+  sdk: ^3.12.2
+  flutter: ">=3.3.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.example.activity_transition_bridge
+        pluginClass: ActivityTransitionBridgePlugin
