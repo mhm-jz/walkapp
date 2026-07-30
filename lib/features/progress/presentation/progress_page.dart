@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:walkingapp/l10n/app_localizations_extension.dart';
 
 import '../../../core/design_system/components/app_card.dart';
 import '../../../core/design_system/components/app_feedback.dart';
@@ -88,7 +89,7 @@ class ProgressPage extends StatelessWidget {
               .length;
 
           return SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(
+            padding: const EdgeInsetsDirectional.fromSTEB(
               AppSpacing.lg,
               AppSpacing.xl,
               AppSpacing.lg,
@@ -103,12 +104,12 @@ class ProgressPage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
                     Text(
-                      'Progress',
+                      context.l10n.progress,
                       style: Theme.of(context).textTheme.headlineMedium,
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      'Your health progress and account in one place.',
+                      context.l10n.progressPageDescription,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: context.appTheme.textSecondary,
                       ),
@@ -116,9 +117,9 @@ class ProgressPage extends StatelessWidget {
                     const SizedBox(height: AppSpacing.xl),
                     if (historyController.viewState ==
                         DailyHistoryViewState.loading)
-                      const AppCard(
+                      AppCard(
                         child: AppLoadingIndicator(
-                          label: 'Loading progress summary',
+                          label: context.l10n.loadingProgressSummary,
                         ),
                       )
                     else if (historyController.viewState ==
@@ -127,7 +128,7 @@ class ProgressPage extends StatelessWidget {
                         child: AppErrorView(
                           message:
                               historyController.userMessage ??
-                              'Progress history is temporarily unavailable.',
+                              context.l10n.progressHistoryUnavailable,
                           compact: true,
                           onRetry: historyController.retry,
                         ),
@@ -145,7 +146,7 @@ class ProgressPage extends StatelessWidget {
                             historyController.lifetimeConfirmedSteps,
                       ),
                     const SizedBox(height: AppSpacing.xl),
-                    const _SectionTitle(title: 'Your progress'),
+                    _SectionTitle(title: context.l10n.yourProgress),
                     const SizedBox(height: AppSpacing.sm),
                     AppCard(
                       padding: EdgeInsets.zero,
@@ -153,22 +154,25 @@ class ProgressPage extends StatelessWidget {
                         children: <Widget>[
                           _DestinationRow(
                             icon: Icons.notifications_outlined,
-                            title: 'Notifications',
-                            description:
-                                '${notificationController.unreadCount} unread',
+                            title: context.l10n.notifications,
+                            description: context.l10n.unreadNotificationCount(
+                              notificationController.unreadCount,
+                            ),
                             onTap: onOpenNotifications,
                           ),
                           const Divider(height: 1),
                           _DestinationRow(
                             icon: Icons.history,
-                            title: 'History',
+                            title: context.l10n.history,
                             description: historyReady
-                                ? '${historyController.recordsForDays(7).length} days recorded locally.'
-                                : 'History metrics are currently unavailable.',
+                                ? context.l10n.localDayCount(
+                                    historyController.recordsForDays(7).length,
+                                  )
+                                : context.l10n.historyMetricsUnavailable,
                             onTap: () => _openPage(
                               context,
                               EmbeddedDestinationPage(
-                                title: 'History',
+                                title: context.l10n.history,
                                 bodyBuilder: (showHeading) => HistoryPage(
                                   controller: historyController,
                                   showHeading: showHeading,
@@ -179,14 +183,16 @@ class ProgressPage extends StatelessWidget {
                           const Divider(height: 1),
                           _DestinationRow(
                             icon: Icons.insights_outlined,
-                            title: 'Insights',
+                            title: context.l10n.insights,
                             description: historyReady
-                                ? '${historyController.goalDaysFor(weekRecords)} goal days this week.'
-                                : 'Insights will show when history is available.',
+                                ? context.l10n.goalDaysThisWeek(
+                                    historyController.goalDaysFor(weekRecords),
+                                  )
+                                : context.l10n.insightsHistoryUnavailable,
                             onTap: () => _openPage(
                               context,
                               EmbeddedDestinationPage(
-                                title: 'Insights',
+                                title: context.l10n.insights,
                                 bodyBuilder: (showHeading) => InsightsPage(
                                   controller: controller,
                                   settingsController: settingsController,
@@ -198,8 +204,10 @@ class ProgressPage extends StatelessWidget {
                           const Divider(height: 1),
                           _DestinationRow(
                             icon: Icons.emoji_events_outlined,
-                            title: 'Achievements',
-                            description: '$unlocked achievements unlocked.',
+                            title: context.l10n.achievements,
+                            description: context.l10n.achievementsUnlocked(
+                              unlocked,
+                            ),
                             onTap: () => _openPage(
                               context,
                               AchievementsPage(
@@ -213,7 +221,7 @@ class ProgressPage extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xl),
-                    const _SectionTitle(title: 'Your account'),
+                    _SectionTitle(title: context.l10n.yourAccount),
                     const SizedBox(height: AppSpacing.sm),
                     AppCard(
                       padding: EdgeInsets.zero,
@@ -221,9 +229,8 @@ class ProgressPage extends StatelessWidget {
                         children: <Widget>[
                           _DestinationRow(
                             icon: Icons.person_outline,
-                            title: 'Profile',
-                            description:
-                                'Manage your name and contact details.',
+                            title: context.l10n.profile,
+                            description: context.l10n.manageProfileDescription,
                             onTap: () => _openPage(
                               context,
                               ProfilePage(
@@ -234,13 +241,12 @@ class ProgressPage extends StatelessWidget {
                           const Divider(height: 1),
                           _DestinationRow(
                             icon: Icons.settings_outlined,
-                            title: 'Settings',
-                            description:
-                                'Adjust your goal, theme, and preferences.',
+                            title: context.l10n.settings,
+                            description: context.l10n.settingsDescription,
                             onTap: () => _openPage(
                               context,
                               EmbeddedDestinationPage(
-                                title: 'Settings',
+                                title: context.l10n.settings,
                                 bodyBuilder: (showHeading) => SettingsPage(
                                   settingsController: settingsController,
                                   onLogout: onLogout,
@@ -252,9 +258,9 @@ class ProgressPage extends StatelessWidget {
                           const Divider(height: 1),
                           _DestinationRow(
                             icon: Icons.info_outline,
-                            title: 'About',
+                            title: context.l10n.about,
                             description:
-                                'Learn more about WalkApp and tracking.',
+                                context.l10n.aboutDestinationDescription,
                             onTap: () => _openPage(context, const AboutPage()),
                           ),
                         ],
@@ -288,13 +294,16 @@ class _ProgressSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final metrics = <({String label, String value})>[
       (
-        label: 'Confirmed this week',
+        label: context.l10n.confirmedThisWeek,
         value: formatCampaignNumber(weeklyConfirmed),
       ),
-      (label: 'Goal days this week', value: '$weeklyGoalDays'),
-      (label: 'Current goal streak', value: '$currentStreak days'),
+      (label: context.l10n.goalDaysThisWeekLabel, value: '$weeklyGoalDays'),
       (
-        label: 'Recorded on this device',
+        label: context.l10n.currentGoalStreak,
+        value: context.l10n.dayCount(currentStreak),
+      ),
+      (
+        label: context.l10n.recordedOnDevice,
         value: formatCampaignNumber(lifetimeConfirmed),
       ),
     ];
@@ -304,7 +313,7 @@ class _ProgressSummary extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           Text(
-            'Local progress summary',
+            context.l10n.localProgressSummary,
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: AppSpacing.lg),

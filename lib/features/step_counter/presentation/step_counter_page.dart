@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:walkingapp/l10n/app_localizations_extension.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 import '../../../core/design_system/components/app_card.dart';
@@ -40,13 +41,13 @@ class _StepCounterPageState extends State<StepCounterPage> {
   Future<void> _startTracking() async {
     await _controller.start();
     if (!mounted || _controller.uiError != null) return;
-    AppSnackbar.show(context, 'Step tracking started');
+    AppSnackbar.show(context, context.l10n.stepTrackingStarted);
   }
 
   Future<void> _stopTracking() async {
     await _controller.stop();
     if (!mounted || _controller.uiError != null) return;
-    AppSnackbar.show(context, 'Step tracking stopped');
+    AppSnackbar.show(context, context.l10n.stepTrackingStopped);
   }
 
   Future<void> _showGoalEditor() async {
@@ -56,7 +57,7 @@ class _StepCounterPageState extends State<StepCounterPage> {
     );
     if (newGoal == null || !mounted) return;
     await widget.settingsController.setDailyGoal(newGoal);
-    if (mounted) AppSnackbar.show(context, 'Daily goal updated');
+    if (mounted) AppSnackbar.show(context, context.l10n.dailyGoalUpdated);
   }
 
   @override
@@ -80,7 +81,7 @@ class _StepCounterPageState extends State<StepCounterPage> {
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: <Widget>[
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(
+                  padding: const EdgeInsetsDirectional.fromSTEB(
                     AppSpacing.lg,
                     AppSpacing.lg,
                     AppSpacing.lg,
@@ -162,12 +163,12 @@ class _StepCounterPageState extends State<StepCounterPage> {
   String _friendlyError(String error) {
     final lower = error.toLowerCase();
     if (lower.contains('permission')) {
-      return 'Activity permission is required to count steps.';
+      return context.l10n.activityPermissionRequired;
     }
     if (lower.contains('sensor') || lower.contains('pedometer')) {
-      return 'The step sensor is unavailable. Check this device’s sensor support.';
+      return context.l10n.stepSensorUnavailable;
     }
-    return 'Tracking could not be updated. Pull down or try again.';
+    return context.l10n.trackingRefreshError;
   }
 
   String? _stopReasonMessage(String? reason) {
@@ -177,10 +178,10 @@ class _StepCounterPageState extends State<StepCounterPage> {
         .replaceAll(RegExp('[^a-z0-9]+'), '_')
         .replaceAll(RegExp('^_+|_+\$'), '');
     return switch (normalized) {
-      'user' ||
-      'notification_button' => 'Start tracking when you\'re ready to walk.',
+      'user' || 'notification_button' =>
+        'هر زمان آماده پیاده‌روی بودید، ردیابی را آغاز کنید.',
       'service_timeout' =>
-        'Background tracking paused. Start again when you\'re ready.',
+        'ردیابی پس‌زمینه متوقف شده است. هر زمان آماده بودید دوباره آغاز کنید.',
       _ => null,
     };
   }
@@ -205,7 +206,7 @@ class _StopReasonCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
-                  'Tracking stopped',
+                  'ردیابی متوقف است',
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
                 const SizedBox(height: AppSpacing.xs),

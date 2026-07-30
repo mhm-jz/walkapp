@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:walkingapp/l10n/app_localizations_extension.dart';
 
 import '../../../core/design_system/components/app_button.dart';
 import '../../../core/design_system/components/app_card.dart';
@@ -38,7 +39,7 @@ class _ActiveCampaignPageState extends State<ActiveCampaignPage> {
   Future<void> _showCompletion(Campaign campaign) async {
     await AppDialog.show<void>(
       context,
-      title: 'Campaign completed',
+      title: context.l10n.campaignCompleted,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
@@ -57,16 +58,17 @@ class _ActiveCampaignPageState extends State<ActiveCampaignPage> {
           const SizedBox(height: AppSpacing.md),
           Text(
             campaign.reward.type == CampaignRewardType.points
-                ? 'You earned ${campaign.reward.pointsAmount ?? 0} points. '
-                      'They are added to your Rewards balance once.'
-                : 'You unlocked ${campaign.reward.discountLabel}. '
-                      'Claim it when you are ready.',
+                ? '${context.l10n.earnedRewardPoints(campaign.reward.pointsAmount ?? 0)} ${context.l10n.pointsAddedToRewards}'
+                : context.l10n.unlockedReward(campaign.reward.discountLabel),
             textAlign: TextAlign.center,
           ),
         ],
       ),
       actions: <Widget>[
-        AppButton(label: 'Done', onPressed: () => Navigator.of(context).pop()),
+        AppButton(
+          label: context.l10n.done,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ],
     );
     await widget.controller.acknowledgeCompletion();
@@ -75,19 +77,16 @@ class _ActiveCampaignPageState extends State<ActiveCampaignPage> {
   Future<void> _confirmLeave() async {
     final shouldLeave = await AppDialog.show<bool>(
       context,
-      title: 'Leave this campaign?',
-      content: const Text(
-        'Your campaign progress will no longer remain active.\n\n'
-        'Your normal health steps and daily goal history will not be deleted.',
-      ),
+      title: context.l10n.leaveCampaignQuestion,
+      content: Text(context.l10n.campaignLeaveDescription),
       actions: <Widget>[
         AppButton(
-          label: 'Keep Campaign',
+          label: context.l10n.continueCampaign,
           variant: AppButtonVariant.text,
           onPressed: () => Navigator.of(context).pop(false),
         ),
         AppButton(
-          label: 'Leave Campaign',
+          label: context.l10n.leaveCampaign,
           variant: AppButtonVariant.destructive,
           onPressed: () => Navigator.of(context).pop(true),
         ),
@@ -97,13 +96,12 @@ class _ActiveCampaignPageState extends State<ActiveCampaignPage> {
     final left = await widget.controller.leaveActiveCampaign();
     if (!mounted) return;
     if (left) {
-      AppSnackbar.show(context, 'Campaign left. Health tracking continues.');
+      AppSnackbar.show(context, context.l10n.campaignLeftHealthContinues);
       Navigator.of(context).pop();
     } else {
       AppSnackbar.show(
         context,
-        widget.controller.userMessage ??
-            'The campaign could not be left. Please try again.',
+        widget.controller.userMessage ?? context.l10n.campaignLeaveError,
         isError: true,
       );
     }
@@ -116,8 +114,8 @@ class _ActiveCampaignPageState extends State<ActiveCampaignPage> {
     AppSnackbar.show(
       context,
       error == null
-          ? 'Step tracking started'
-          : 'Tracking could not be started. Please try again.',
+          ? context.l10n.stepTrackingStarted
+          : context.l10n.trackingStartError,
       isError: error != null,
     );
   }
@@ -133,7 +131,7 @@ class _ActiveCampaignPageState extends State<ActiveCampaignPage> {
     if ((result == RewardActionResult.success ||
             result == RewardActionResult.alreadyClaimed) &&
         claim != null) {
-      AppSnackbar.show(context, 'Campaign reward claimed');
+      AppSnackbar.show(context, context.l10n.campaignRewardClaimed);
       Navigator.of(context).push<void>(
         MaterialPageRoute<void>(
           builder: (context) => CouponDetailsPage(
@@ -146,8 +144,7 @@ class _ActiveCampaignPageState extends State<ActiveCampaignPage> {
     }
     AppSnackbar.show(
       context,
-      widget.rewardsController.userMessage ??
-          'The reward could not be claimed.',
+      widget.rewardsController.userMessage ?? context.l10n.rewardClaimError,
       isError: true,
     );
   }
@@ -170,7 +167,7 @@ class _ActiveCampaignPageState extends State<ActiveCampaignPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Active Campaign')),
+      appBar: AppBar(title: Text(context.l10n.activeCampaign)),
       body: AnimatedBuilder(
         animation: Listenable.merge(<Listenable>[
           widget.controller,
@@ -181,8 +178,8 @@ class _ActiveCampaignPageState extends State<ActiveCampaignPage> {
           final enrollment = widget.controller.recentEnrollment;
           if (widget.controller.viewState ==
               CampaignEnrollmentViewState.loading) {
-            return const Center(
-              child: AppLoadingIndicator(label: 'Loading campaign'),
+            return Center(
+              child: AppLoadingIndicator(label: context.l10n.loadingCampaign),
             );
           }
           if (widget.controller.viewState ==
@@ -193,29 +190,28 @@ class _ActiveCampaignPageState extends State<ActiveCampaignPage> {
                 child: AppErrorView(
                   message:
                       widget.controller.userMessage ??
-                      'Campaign enrollment could not be loaded.',
+                      'عضویت در چالش بارگیری نشد.',
                   onRetry: widget.controller.initialize,
                 ),
               ),
             );
           }
           if (enrollment == null) {
-            return const Center(
+            return Center(
               child: AppEmptyState(
-                title: 'No campaign to show',
-                message: 'Return to Campaigns to discover a campaign.',
+                title: context.l10n.noCampaignToShow,
+                message: context.l10n.returnToCampaigns,
                 icon: Icons.campaign_outlined,
               ),
             );
           }
           final campaign = widget.controller.campaignFor(enrollment);
           if (campaign == null) {
-            return const Center(
+            return Center(
               child: Padding(
-                padding: EdgeInsets.all(AppSpacing.lg),
+                padding: const EdgeInsets.all(AppSpacing.lg),
                 child: AppErrorView(
-                  message:
-                      'This saved campaign is unavailable. Your local record has been preserved.',
+                  message: context.l10n.savedCampaignUnavailable,
                 ),
               ),
             );
@@ -276,7 +272,7 @@ class _CampaignBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(
+      padding: const EdgeInsetsDirectional.fromSTEB(
         AppSpacing.lg,
         AppSpacing.lg,
         AppSpacing.lg,
@@ -317,7 +313,7 @@ class _CampaignBody extends StatelessWidget {
               if (enrollment.status == CampaignEnrollmentStatus.active) ...[
                 const SizedBox(height: AppSpacing.xl),
                 AppButton(
-                  label: 'Leave Campaign',
+                  label: context.l10n.leaveCampaign,
                   icon: Icons.exit_to_app,
                   variant: AppButtonVariant.destructive,
                   expanded: true,
@@ -361,7 +357,7 @@ class _CompletionRewardCard extends StatelessWidget {
         children: <Widget>[
           Text(
             points
-                ? '${campaign.reward.pointsAmount ?? 0} points earned'
+                ? context.l10n.pointsEarned(campaign.reward.pointsAmount ?? 0)
                 : campaign.reward.discountLabel,
             style: Theme.of(context).textTheme.titleLarge,
           ),
@@ -369,21 +365,21 @@ class _CompletionRewardCard extends StatelessWidget {
           Text(
             points
                 ? pointsAdded
-                      ? 'Added to your Rewards balance.'
-                      : 'Your points are being added safely.'
+                      ? context.l10n.pointsAddedToRewards
+                      : context.l10n.pointsBeingAdded
                 : claim == null
-                ? 'Your completed campaign reward is ready to claim.'
-                : 'Your prototype coupon is available in My Rewards.',
+                ? context.l10n.completedRewardReady
+                : context.l10n.couponAvailableInRewards,
           ),
           const SizedBox(height: AppSpacing.md),
           Align(
-            alignment: Alignment.centerLeft,
+            alignment: AlignmentDirectional.centerStart,
             child: AppButton(
               label: points
-                  ? 'View Rewards'
+                  ? context.l10n.rewards
                   : claim == null
-                  ? 'Claim Reward'
-                  : 'View Reward',
+                  ? context.l10n.claimReward
+                  : context.l10n.viewClaimedReward,
               isLoading: rewardsController.isSaving,
               onPressed: points
                   ? onViewWallet
@@ -425,9 +421,9 @@ class _Header extends StatelessWidget {
         Text(campaign.title, style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: AppSpacing.sm),
         Align(
-          alignment: Alignment.centerLeft,
+          alignment: AlignmentDirectional.centerStart,
           child: AppStatusChip(
-            label: _enrollmentStatusLabel(enrollment.status),
+            label: _enrollmentStatusLabel(context, enrollment.status),
             status: switch (enrollment.status) {
               CampaignEnrollmentStatus.active => AppStatus.info,
               CampaignEnrollmentStatus.completed => AppStatus.success,
@@ -444,8 +440,10 @@ class _Header extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         Text(
-          'Joined ${campaignDate(enrollment.joinedAt)}  •  '
-          'Ends ${campaignDate(campaign.endAt)}',
+          context.l10n.joinedAndEnds(
+            campaignDate(context.l10n, enrollment.joinedAt),
+            campaignDate(context.l10n, campaign.endAt),
+          ),
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             color: context.appTheme.textSecondary,
           ),
@@ -453,10 +451,10 @@ class _Header extends StatelessWidget {
         const SizedBox(height: AppSpacing.xs),
         Text(
           enrollment.status == CampaignEnrollmentStatus.expired
-              ? 'Campaign ended'
+              ? 'چالش پایان یافته'
               : enrollment.status == CampaignEnrollmentStatus.completed
-              ? 'Requirement completed'
-              : campaignTiming(campaign, DateTime.now()),
+              ? context.l10n.requirementCompleted
+              : campaignTiming(context.l10n, campaign, DateTime.now()),
         ),
       ],
     );
@@ -485,8 +483,12 @@ class _ProgressCard extends StatelessWidget {
     final capturedGoal = enrollment.goalAtEnrollment ?? 0;
     return Semantics(
       label: isStepTarget
-          ? '$percent percent complete, ${enrollment.totalEligibleSteps} of ${campaign.targetSteps} campaign steps'
-          : '$completedDays of $requiredDays goal days complete',
+          ? context.l10n.stepProgressSemantics(
+              percent,
+              enrollment.totalEligibleSteps,
+              campaign.targetSteps ?? 0,
+            )
+          : context.l10n.goalProgressSemantics(completedDays, requiredDays),
       child: AppCard(
         color: Theme.of(context).colorScheme.primaryContainer,
         child: Column(
@@ -494,10 +496,10 @@ class _ProgressCard extends StatelessWidget {
           children: <Widget>[
             Text(
               enrollment.status == CampaignEnrollmentStatus.completed
-                  ? 'Campaign completed'
+                  ? context.l10n.campaignCompletedStatus
                   : enrollment.status == CampaignEnrollmentStatus.expired
-                  ? 'Final campaign progress'
-                  : 'Campaign progress',
+                  ? context.l10n.finalCampaignProgress
+                  : context.l10n.campaignProgress,
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: AppSpacing.lg),
@@ -505,31 +507,46 @@ class _ProgressCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             if (isStepTarget) ...<Widget>[
               Text(
-                '${formatCampaignNumber(enrollment.totalEligibleSteps)} / '
-                '${formatCampaignNumber(campaign.targetSteps ?? 0)} campaign steps',
+                context.l10n.campaignStepProgress(
+                  formatCampaignNumber(enrollment.totalEligibleSteps),
+                  formatCampaignNumber(campaign.targetSteps ?? 0),
+                ),
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                '${formatCampaignNumber(((campaign.targetSteps ?? 0) - enrollment.totalEligibleSteps).clamp(0, 1 << 31))} steps remaining  •  $percent%',
+                context.l10n.stepsRemainingPercent(
+                  formatCampaignNumber(
+                    ((campaign.targetSteps ?? 0) -
+                            enrollment.totalEligibleSteps)
+                        .clamp(0, 1 << 31),
+                  ),
+                  percent,
+                ),
               ),
             ] else ...<Widget>[
               Text(
-                '$completedDays / $requiredDays goal days completed',
+                context.l10n.goalDaysCompleted(completedDays, requiredDays),
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                '${formatCampaignNumber(today)} / '
-                '${formatCampaignNumber(capturedGoal)} eligible steps today',
+                context.l10n.eligibleStepsToday(
+                  formatCampaignNumber(today),
+                  formatCampaignNumber(capturedGoal),
+                ),
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                '${(requiredDays - completedDays).clamp(0, requiredDays)} required days remaining',
+                context.l10n.requiredDaysRemaining(
+                  (requiredDays - completedDays).clamp(0, requiredDays),
+                ),
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'Captured daily goal: ${formatCampaignNumber(capturedGoal)} steps',
+                context.l10n.capturedDailyGoal(
+                  formatCampaignNumber(capturedGoal),
+                ),
               ),
             ],
             if (enrollment.status ==
@@ -537,8 +554,12 @@ class _ProgressCard extends StatelessWidget {
               const SizedBox(height: AppSpacing.lg),
               Text(
                 campaign.reward.type == CampaignRewardType.points
-                    ? 'You earned ${campaign.reward.pointsAmount ?? 0} reward points.'
-                    : 'You unlocked ${campaign.reward.discountLabel}.',
+                    ? context.l10n.earnedRewardPoints(
+                        campaign.reward.pointsAmount ?? 0,
+                      )
+                    : context.l10n.unlockedReward(
+                        campaign.reward.discountLabel,
+                      ),
               ),
             ],
           ],
@@ -570,21 +591,23 @@ class _TrackingCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 Text(
-                  isTracking ? 'Tracking is active' : 'Tracking is stopped',
+                  isTracking
+                      ? context.l10n.trackingActiveStatus
+                      : context.l10n.trackingStoppedStatus,
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   isTracking
-                      ? 'Eligible confirmed steps will update this campaign automatically.'
-                      : 'Campaign progress changes only while eligible confirmed steps are recorded.',
+                      ? context.l10n.trackingCampaignAutoUpdate
+                      : context.l10n.trackingCampaignRequirement,
                 ),
                 if (!isTracking) ...<Widget>[
                   const SizedBox(height: AppSpacing.md),
                   Align(
-                    alignment: Alignment.centerLeft,
+                    alignment: AlignmentDirectional.centerStart,
                     child: AppButton(
-                      label: 'Start Tracking',
+                      label: context.l10n.startTracking,
                       icon: Icons.play_arrow,
                       onPressed: onStart,
                     ),
@@ -608,20 +631,22 @@ class _RulesCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rules = <String>[
-      'Only confirmed steps recorded after enrollment count.',
-      'Health progress and the daily goal continue independently.',
+      context.l10n.confirmedAfterEnrollmentOnly,
+      context.l10n.healthProgressIndependent,
       if (campaign.type == CampaignType.dailyGoalConsistency)
-        'This campaign keeps the captured ${formatCampaignNumber(enrollment.goalAtEnrollment ?? 0)}-step goal even if Settings changes.',
-      'Deadline: ${campaignDate(campaign.endAt)}.',
-      'Reward preview: ${campaign.reward.discountLabel}.',
-      'This is offline local prototype state. Device-local time is used.',
+        context.l10n.capturedGoalPreserved(
+          formatCampaignNumber(enrollment.goalAtEnrollment ?? 0),
+        ),
+      context.l10n.deadlineValue(campaignDate(context.l10n, campaign.endAt)),
+      context.l10n.rewardPreviewSentence(campaign.reward.discountLabel),
+      context.l10n.offlinePrototypeState,
     ];
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           Text(
-            'Campaign rules',
+            context.l10n.campaignRules,
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: AppSpacing.md),
@@ -643,10 +668,12 @@ class _RulesCard extends StatelessWidget {
   }
 }
 
-String _enrollmentStatusLabel(CampaignEnrollmentStatus status) =>
-    switch (status) {
-      CampaignEnrollmentStatus.active => 'Active',
-      CampaignEnrollmentStatus.completed => 'Completed',
-      CampaignEnrollmentStatus.expired => 'Campaign ended',
-      CampaignEnrollmentStatus.left => 'Left',
-    };
+String _enrollmentStatusLabel(
+  BuildContext context,
+  CampaignEnrollmentStatus status,
+) => switch (status) {
+  CampaignEnrollmentStatus.active => context.l10n.activeStatus,
+  CampaignEnrollmentStatus.completed => context.l10n.completed,
+  CampaignEnrollmentStatus.expired => context.l10n.campaignFinished,
+  CampaignEnrollmentStatus.left => context.l10n.leftStatus,
+};

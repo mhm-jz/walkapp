@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:walkingapp/l10n/app_localizations.dart';
 
 import 'core/preferences/app_preferences.dart';
 import 'core/preferences/app_settings_controller.dart';
@@ -186,7 +188,15 @@ class _WalkingAppState extends State<WalkingApp> {
       builder: (context, child) => MaterialApp(
         navigatorKey: _navigatorKey,
         debugShowCheckedModeBanner: false,
-        title: 'WalkApp',
+        onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
+        locale: _settingsController.locale,
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,
         themeMode: _settingsController.themeMode,

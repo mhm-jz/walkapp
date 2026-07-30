@@ -4,6 +4,7 @@ import '../../../../core/design_system/components/app_button.dart';
 import '../../../../core/design_system/components/app_card.dart';
 import '../../../../core/design_system/extensions/app_theme_extension.dart';
 import '../../../../core/design_system/tokens/app_tokens.dart';
+import '../../../../l10n/app_localizations_extension.dart';
 import '../../domain/campaign.dart';
 import '../../domain/campaign_status.dart';
 import '../../domain/campaign_enrollment_status.dart';
@@ -55,7 +56,7 @@ class FeaturedCampaignCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Align(
-            alignment: Alignment.centerLeft,
+            alignment: AlignmentDirectional.centerStart,
             child: CampaignStatusChip(status: campaign.statusAt(now)),
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -70,27 +71,27 @@ class FeaturedCampaignCard extends StatelessWidget {
             children: <Widget>[
               _InlineFact(
                 icon: Icons.flag_outlined,
-                value: campaignGoalSummary(campaign),
+                value: campaignGoalSummary(context.l10n, campaign),
               ),
               _InlineFact(
                 icon: Icons.schedule,
-                value: campaignTiming(campaign, now),
+                value: campaignTiming(context.l10n, campaign, now),
               ),
               _InlineFact(
                 icon: Icons.category_outlined,
-                value: campaignTypeLabel(campaign.type),
+                value: campaignTypeLabel(context.l10n, campaign.type),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
           Align(
-            alignment: Alignment.centerLeft,
+            alignment: AlignmentDirectional.centerStart,
             child: AppButton(
               label: switch (enrollmentStatus) {
-                CampaignEnrollmentStatus.active => 'View Progress',
-                CampaignEnrollmentStatus.completed => 'Completed',
-                CampaignEnrollmentStatus.expired => 'Campaign ended',
-                _ => 'View Campaign',
+                CampaignEnrollmentStatus.active => 'مشاهده پیشرفت',
+                CampaignEnrollmentStatus.completed => 'تکمیل‌شده',
+                CampaignEnrollmentStatus.expired => 'چالش پایان یافته',
+                _ => 'مشاهده چالش',
               },
               icon: Icons.arrow_forward,
               onPressed: onView,
@@ -156,7 +157,7 @@ class CampaignCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Align(
-            alignment: Alignment.centerLeft,
+            alignment: AlignmentDirectional.centerStart,
             child: CampaignStatusChip(status: status),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -180,27 +181,28 @@ class CampaignCard extends StatelessWidget {
             children: <Widget>[
               _InlineFact(
                 icon: Icons.flag_outlined,
-                value: campaignGoalSummary(campaign),
+                value: campaignGoalSummary(context.l10n, campaign),
               ),
               _InlineFact(
                 icon: Icons.schedule,
-                value: campaignTiming(campaign, now),
+                value: campaignTiming(context.l10n, campaign, now),
               ),
               _InlineFact(
                 icon: Icons.category_outlined,
-                value: campaignTypeLabel(campaign.type),
+                value: campaignTypeLabel(context.l10n, campaign.type),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
           Align(
-            alignment: Alignment.centerLeft,
+            alignment: AlignmentDirectional.centerStart,
             child: AppButton(
               label: switch (enrollmentStatus) {
-                CampaignEnrollmentStatus.active => 'View Progress',
-                CampaignEnrollmentStatus.completed => 'Completed',
-                CampaignEnrollmentStatus.expired => 'Campaign ended',
-                _ => 'View details',
+                CampaignEnrollmentStatus.active => context.l10n.viewProgress,
+                CampaignEnrollmentStatus.completed => context.l10n.completed,
+                CampaignEnrollmentStatus.expired =>
+                  context.l10n.campaignFinished,
+                _ => context.l10n.viewDetails,
               },
               icon: Icons.arrow_forward,
               variant: AppButtonVariant.outlined,

@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../../core/preferences/app_settings_controller.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../step_counter/presentation/step_counter_controller.dart';
 import '../data/campaign_enrollment_repository.dart';
 import '../data/campaign_repository.dart';
@@ -26,11 +28,16 @@ final class CampaignEnrollmentController extends ChangeNotifier {
     this._enrollmentRepository,
     this._campaignRepository,
     this._stepController,
+    this._settingsController,
   );
 
   final CampaignEnrollmentRepository _enrollmentRepository;
   final CampaignRepository _campaignRepository;
   final StepCounterController _stepController;
+  final AppSettingsController _settingsController;
+
+  AppLocalizations get _l10n =>
+      lookupAppLocalizations(_settingsController.locale);
 
   CampaignEnrollmentViewState _viewState = CampaignEnrollmentViewState.loading;
   List<Campaign> _campaigns = const <Campaign>[];
@@ -100,8 +107,7 @@ final class CampaignEnrollmentController extends ChangeNotifier {
       _scheduleExpiration();
     } catch (_) {
       _viewState = CampaignEnrollmentViewState.error;
-      _userMessage =
-          'Campaign enrollment could not be loaded. Please try again.';
+      _userMessage = _l10n.campaignEnrollmentError;
     }
     _notify();
   }
@@ -160,8 +166,7 @@ final class CampaignEnrollmentController extends ChangeNotifier {
       _notify();
       return CampaignJoinResult.joined;
     } catch (_) {
-      _userMessage =
-          'The campaign could not be joined locally. Please try again.';
+      _userMessage = _l10n.campaignJoinLocalError;
       _notify();
       return CampaignJoinResult.persistenceFailed;
     }
@@ -182,8 +187,7 @@ final class CampaignEnrollmentController extends ChangeNotifier {
       _notify();
       return true;
     } catch (_) {
-      _userMessage =
-          'The campaign could not be left locally. Please try again.';
+      _userMessage = _l10n.campaignLeaveLocalError;
       _notify();
       return false;
     }
@@ -291,8 +295,7 @@ final class CampaignEnrollmentController extends ChangeNotifier {
       }
       _notify();
     } catch (_) {
-      _userMessage =
-          'Campaign progress could not be saved. Tracking can continue while you retry.';
+      _userMessage = _l10n.campaignProgressSaveError;
       _notify();
     }
   }
@@ -311,8 +314,7 @@ final class CampaignEnrollmentController extends ChangeNotifier {
     if (enrollment == null) return;
     final campaign = campaignFor(enrollment);
     if (campaign == null) {
-      _userMessage =
-          'This saved campaign is not available on this device. Its local progress is preserved.';
+      _userMessage = _l10n.savedCampaignDeviceUnavailable;
       return;
     }
     if (!DateTime.now().isAfter(campaign.endAt)) return;
@@ -324,8 +326,7 @@ final class CampaignEnrollmentController extends ChangeNotifier {
       _replaceEnrollment(expired);
       _expirationTimer?.cancel();
     } catch (_) {
-      _userMessage =
-          'The campaign status could not be updated locally. Please try again.';
+      _userMessage = _l10n.campaignStatusUpdateError;
     }
   }
 

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../../../core/preferences/app_settings_controller.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../step_counter/presentation/step_counter_controller.dart';
 import '../data/daily_step_history_repository.dart';
 import '../domain/daily_step_record.dart';
@@ -95,8 +96,9 @@ final class DailyStepHistoryController extends ChangeNotifier {
       _scheduleRollover();
     } catch (_) {
       _viewState = DailyHistoryViewState.error;
-      _userMessage =
-          'Local walking history could not be loaded. Step tracking can continue.';
+      _userMessage = lookupAppLocalizations(
+        _settingsController.locale,
+      ).historyLoadControllerError;
     }
     _notify();
   }
@@ -218,8 +220,9 @@ final class DailyStepHistoryController extends ChangeNotifier {
       _notify();
     } catch (_) {
       _lastObservedConfirmed = current;
-      _userMessage =
-          'Today’s confirmed history could not be saved yet. Tracking continues normally.';
+      _userMessage = lookupAppLocalizations(
+        _settingsController.locale,
+      ).historySaveControllerError;
       _notify();
     }
   }

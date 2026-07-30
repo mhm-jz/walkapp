@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:walkingapp/l10n/app_localizations_extension.dart';
 
 import '../tokens/app_tokens.dart';
 import 'app_button.dart';
@@ -63,7 +64,7 @@ class AppLoadingIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: label ?? 'Loading',
+      label: label ?? context.l10n.loadingLabel,
       child: const CircularProgressIndicator(),
     );
   }
@@ -104,13 +105,13 @@ class AppErrorView extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final content = _StateView(
       icon: Icons.error_outline,
-      title: 'Something went wrong',
+      title: context.l10n.somethingWentWrong,
       message: message,
       color: scheme.error,
       action: onRetry == null
           ? null
           : AppButton(
-              label: 'Try again',
+              label: context.l10n.retry,
               variant: AppButtonVariant.outlined,
               onPressed: onRetry,
             ),

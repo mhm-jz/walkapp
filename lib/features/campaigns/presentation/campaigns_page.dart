@@ -7,6 +7,7 @@ import '../../../core/design_system/components/app_status_chip.dart';
 import '../../../core/design_system/extensions/app_theme_extension.dart';
 import '../../../core/design_system/tokens/app_tokens.dart';
 import '../../../core/preferences/app_settings_controller.dart';
+import '../../../l10n/app_localizations_extension.dart';
 import '../application/campaign_enrollment_controller.dart';
 import '../data/campaign_repository.dart';
 import '../domain/campaign.dart';
@@ -61,14 +62,14 @@ class _CampaignsPageState extends State<CampaignsPage> {
       final interests = widget.settingsController.rewardInterests;
       final ordered = campaigns.indexed.toList()
         ..sort((a, b) {
-          if (interests.isEmpty || interests.contains('No preference')) {
+          if (interests.isEmpty || interests.contains('بدون ترجیح')) {
             return a.$1.compareTo(b.$1);
           }
           final aMatches = interests.contains(
-            campaignCategoryLabel(a.$2.category),
+            campaignCategoryLabel(context.l10n, a.$2.category),
           );
           final bMatches = interests.contains(
-            campaignCategoryLabel(b.$2.category),
+            campaignCategoryLabel(context.l10n, b.$2.category),
           );
           if (aMatches == bMatches) return a.$1.compareTo(b.$1);
           return aMatches ? -1 : 1;
@@ -135,7 +136,7 @@ class _CampaignsPageState extends State<CampaignsPage> {
       child: CustomScrollView(
         slivers: <Widget>[
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(
+            padding: const EdgeInsetsDirectional.fromSTEB(
               AppSpacing.lg,
               AppSpacing.xl,
               AppSpacing.lg,
@@ -168,17 +169,20 @@ class _CampaignsPageState extends State<CampaignsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text('Campaigns', style: Theme.of(context).textTheme.headlineMedium),
+        Text(
+          context.l10n.campaigns,
+          style: Theme.of(context).textTheme.headlineMedium,
+        ),
         const SizedBox(height: AppSpacing.xs),
         Text(
-          'Walk toward meaningful goals and unlock brand rewards.',
+          context.l10n.campaignsDescription,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             color: context.appTheme.textSecondary,
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
-        const AppStatusChip(
-          label: 'Local prototype content',
+        AppStatusChip(
+          label: context.l10n.localPrototypeContent,
           status: AppStatus.neutral,
           icon: Icons.science_outlined,
         ),
@@ -188,18 +192,20 @@ class _CampaignsPageState extends State<CampaignsPage> {
 
   Widget _buildBody() {
     final content = switch (_viewState) {
-      _CampaignsViewState.loading => const Padding(
+      _CampaignsViewState.loading => Padding(
         padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
-        child: Center(child: AppLoadingIndicator(label: 'Loading campaigns')),
+        child: Center(
+          child: AppLoadingIndicator(label: context.l10n.loadingCampaigns),
+        ),
       ),
       _CampaignsViewState.error => AppErrorView(
-        message: 'Campaigns could not be loaded. Please try again.',
+        message: context.l10n.campaignsLoadError,
         onRetry: _loadCampaigns,
       ),
-      _CampaignsViewState.empty => const AppCard(
+      _CampaignsViewState.empty => AppCard(
         child: AppEmptyState(
-          title: 'No campaigns available yet',
-          message: 'New walking campaigns will appear here.',
+          title: context.l10n.noCampaignsAvailable,
+          message: context.l10n.noCampaignsDescription,
           icon: Icons.campaign_outlined,
         ),
       ),
@@ -238,7 +244,7 @@ class _CampaignsPageState extends State<CampaignsPage> {
                 child: AppErrorView(
                   message:
                       widget.enrollmentController.userMessage ??
-                      'Enrollment state could not be loaded.',
+                      context.l10n.campaignEnrollmentLoadError,
                   onRetry:
                       widget.enrollmentController.viewState ==
                           CampaignEnrollmentViewState.error
@@ -293,7 +299,7 @@ class _CampaignContent extends StatelessWidget {
       children: <Widget>[
         if (featured != null) ...<Widget>[
           Text(
-            'Featured campaign',
+            context.l10n.featuredCampaign,
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -314,16 +320,16 @@ class _CampaignContent extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xl),
         if (campaigns.isEmpty)
-          const AppCard(
+          AppCard(
             child: AppEmptyState(
-              title: 'No matching campaigns',
-              message: 'Try another status or category filter.',
+              title: context.l10n.noMatchingCampaigns,
+              message: context.l10n.tryAnotherCampaignFilter,
               icon: Icons.filter_alt_off_outlined,
             ),
           )
         else ...<Widget>[
           Text(
-            'Discover campaigns',
+            context.l10n.discoverCampaigns,
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -366,10 +372,14 @@ class _ActiveCampaignCard extends StatelessWidget {
     final stepTarget = campaign.type == CampaignType.stepTarget;
     final progress = controller.progressFor(campaign, enrollment);
     final progressText = stepTarget
-        ? '${formatCampaignNumber(enrollment.totalEligibleSteps)} / '
-              '${formatCampaignNumber(campaign.targetSteps ?? 0)} campaign steps'
-        : '${controller.completedGoalDays(enrollment)} / '
-              '${campaign.requiredGoalDays} goal days';
+        ? context.l10n.campaignStepProgress(
+            formatCampaignNumber(enrollment.totalEligibleSteps),
+            formatCampaignNumber(campaign.targetSteps ?? 0),
+          )
+        : context.l10n.goalDaysCompleted(
+            controller.completedGoalDays(enrollment),
+            campaign.requiredGoalDays ?? 0,
+          );
     return AppCard(
       color: Theme.of(context).colorScheme.primaryContainer,
       child: Column(
@@ -381,12 +391,12 @@ class _ActiveCampaignCard extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
-                  'Active Campaign',
+                  'چالش فعال',
                   style: Theme.of(context).textTheme.labelLarge,
                 ),
               ),
-              const AppStatusChip(
-                label: 'Active',
+              AppStatusChip(
+                label: context.l10n.active,
                 status: AppStatus.info,
                 icon: Icons.sensors,
               ),
@@ -402,12 +412,12 @@ class _ActiveCampaignCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Text(progressText),
           const SizedBox(height: AppSpacing.xs),
-          Text(campaignTiming(campaign, DateTime.now())),
+          Text(campaignTiming(context.l10n, campaign, DateTime.now())),
           const SizedBox(height: AppSpacing.md),
           Align(
-            alignment: Alignment.centerLeft,
+            alignment: AlignmentDirectional.centerStart,
             child: AppButton(
-              label: 'Continue Campaign',
+              label: context.l10n.continueCampaign,
               icon: Icons.arrow_forward,
               onPressed: onContinue,
             ),
@@ -438,7 +448,7 @@ class _CampaignFilterBar extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           Text(
-            'Filter campaigns',
+            context.l10n.filterCampaigns,
             style: Theme.of(context).textTheme.titleSmall,
           ),
           const SizedBox(height: AppSpacing.md),
@@ -448,7 +458,7 @@ class _CampaignFilterBar extends StatelessWidget {
               children: <Widget>[
                 for (final filter in _StatusFilter.values) ...<Widget>[
                   FilterChip(
-                    label: Text(_statusFilterLabel(filter)),
+                    label: Text(_statusFilterLabel(context, filter)),
                     selected: statusFilter == filter,
                     onSelected: (_) => onStatusChanged(filter),
                   ),
@@ -462,18 +472,18 @@ class _CampaignFilterBar extends StatelessWidget {
           DropdownButtonFormField<CampaignCategory?>(
             initialValue: categoryFilter,
             decoration: const InputDecoration(
-              labelText: 'Category',
+              labelText: 'دسته‌بندی',
               prefixIcon: Icon(Icons.category_outlined),
             ),
             isExpanded: true,
             items: <DropdownMenuItem<CampaignCategory?>>[
-              const DropdownMenuItem<CampaignCategory?>(
-                child: Text('All categories'),
+              DropdownMenuItem<CampaignCategory?>(
+                child: Text(context.l10n.allCategories),
               ),
               for (final category in CampaignCategory.values)
                 DropdownMenuItem<CampaignCategory?>(
                   value: category,
-                  child: Text(campaignCategoryLabel(category)),
+                  child: Text(campaignCategoryLabel(context.l10n, category)),
                 ),
             ],
             onChanged: onCategoryChanged,
@@ -483,10 +493,11 @@ class _CampaignFilterBar extends StatelessWidget {
     );
   }
 
-  String _statusFilterLabel(_StatusFilter filter) => switch (filter) {
-    _StatusFilter.all => 'All',
-    _StatusFilter.available => 'Available',
-    _StatusFilter.endingSoon => 'Ending soon',
-    _StatusFilter.upcoming => 'Upcoming',
-  };
+  String _statusFilterLabel(BuildContext context, _StatusFilter filter) =>
+      switch (filter) {
+        _StatusFilter.all => context.l10n.allFilter,
+        _StatusFilter.available => context.l10n.campaignAvailableStatus,
+        _StatusFilter.endingSoon => context.l10n.endingSoon,
+        _StatusFilter.upcoming => context.l10n.campaignUpcomingStatus,
+      };
 }

@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/design_system/components/app_button.dart';
 import '../../../core/design_system/components/app_card.dart';
@@ -25,8 +26,10 @@ import '../../rewards/domain/claimed_reward.dart';
 import '../../rewards/domain/coupon_status.dart';
 import '../../rewards/presentation/coupon_details_page.dart';
 import '../../step_counter/data/step_snapshot.dart';
-import '../../step_counter/domain/tracking_activity.dart';
 import '../../step_counter/presentation/step_counter_controller.dart';
+import '../../step_counter/presentation/tracking_activity_localization.dart';
+import '../../../l10n/app_localizations.dart';
+import '../../../l10n/app_localizations_extension.dart';
 import '../../step_counter/presentation/widgets/daily_goal_sheet.dart';
 import '../../notifications/application/notification_controller.dart';
 
@@ -66,7 +69,7 @@ class _HomePageState extends State<HomePage> {
     );
     if (goal == null || !mounted) return;
     await widget.settingsController.setDailyGoal(goal);
-    if (mounted) AppSnackbar.show(context, 'Daily goal updated');
+    if (mounted) AppSnackbar.show(context, context.l10n.dailyGoalUpdated);
   }
 
   Future<void> _toggleTracking() async {
@@ -82,9 +85,9 @@ class _HomePageState extends State<HomePage> {
       context,
       error == null
           ? wasTracking
-                ? 'Step tracking stopped'
-                : 'Step tracking started'
-          : 'Tracking could not be updated. Please try again.',
+                ? context.l10n.stepTrackingStopped
+                : context.l10n.stepTrackingStarted
+          : context.l10n.trackingUpdateError,
       isError: error != null,
     );
   }
@@ -126,14 +129,13 @@ class _HomePageState extends State<HomePage> {
     if ((result == RewardActionResult.success ||
             result == RewardActionResult.alreadyClaimed) &&
         claim != null) {
-      AppSnackbar.show(context, 'Campaign reward claimed');
+      AppSnackbar.show(context, 'پاداش چالش دریافت شد');
       _openCoupon(claim);
       return;
     }
     AppSnackbar.show(
       context,
-      widget.rewardsController.userMessage ??
-          'The reward could not be claimed.',
+      widget.rewardsController.userMessage ?? context.l10n.rewardClaimError,
       isError: true,
     );
   }
@@ -160,7 +162,7 @@ class _HomePageState extends State<HomePage> {
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: <Widget>[
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(
+                padding: const EdgeInsetsDirectional.fromSTEB(
                   AppSpacing.lg,
                   AppSpacing.lg,
                   AppSpacing.lg,
@@ -300,17 +302,23 @@ class _HomePageState extends State<HomePage> {
   String _friendlyError(String error) {
     final lower = error.toLowerCase();
     if (lower.contains('permission')) {
-      return 'Activity permission is required to count steps.';
+      return context.l10n.activityPermissionRequired;
     }
     if (lower.contains('sensor') || lower.contains('pedometer')) {
-      return 'The step sensor is unavailable on this device.';
+      return context.l10n.stepSensorUnavailable;
     }
-    return 'Tracking could not be updated. Pull down or try again.';
+    return context.l10n.trackingRefreshError;
   }
 
   String _trackingActionLabel(StepSnapshot snapshot, bool busy) {
-    if (!busy) return snapshot.isTracking ? 'Stop Tracking' : 'Start Walking';
-    return snapshot.isTracking ? 'Stopping…' : 'Starting…';
+    if (!busy) {
+      return snapshot.isTracking
+          ? context.l10n.stopTracking
+          : context.l10n.startWalking;
+    }
+    return snapshot.isTracking
+        ? context.l10n.stoppingTracking
+        : context.l10n.startingTracking;
   }
 }
 
@@ -332,10 +340,10 @@ class _HomeHeader extends StatelessWidget {
     final now = DateTime.now();
     final name = profileName.trim().split(RegExp(r'\s+')).firstOrNull ?? '';
     final greeting = now.hour < 12
-        ? 'Good morning'
+        ? context.l10n.goodMorning
         : now.hour < 18
-        ? 'Good afternoon'
-        : 'Good evening';
+        ? context.l10n.goodAfternoon
+        : context.l10n.goodEvening;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -349,7 +357,7 @@ class _HomeHeader extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                _fullDate(now),
+                _fullDate(context, now),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: context.appTheme.textSecondary,
                 ),
@@ -359,8 +367,8 @@ class _HomeHeader extends StatelessWidget {
         ),
         Semantics(
           label: unreadCount == 0
-              ? 'Notifications, none unread'
-              : 'Notifications, $unreadCount unread',
+              ? context.l10n.noUnreadNotifications
+              : context.l10n.unreadNotificationsSemantics(unreadCount),
           button: true,
           child: Badge(
             isLabelVisible: unreadCount > 0,
@@ -373,47 +381,22 @@ class _HomeHeader extends StatelessWidget {
             ),
             child: AppIconButton(
               icon: Icons.notifications_outlined,
-              tooltip: 'Open notifications',
+              tooltip: context.l10n.openNotifications,
               onPressed: onOpenNotifications,
             ),
           ),
         ),
         AppIconButton(
           icon: Icons.account_circle_outlined,
-          tooltip: 'Open account menu',
+          tooltip: context.l10n.openAccountMenu,
           onPressed: onOpenAccount,
         ),
       ],
     );
   }
 
-  String _fullDate(DateTime value) {
-    const weekdays = <String>[
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-      'Sunday',
-    ];
-    const months = <String>[
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
-    return '${weekdays[value.weekday - 1]}, '
-        '${months[value.month - 1]} ${value.day}';
-  }
+  String _fullDate(BuildContext context, DateTime value) =>
+      DateFormat('EEEE، d MMMM', context.l10n.localeName).format(value);
 }
 
 class _TodayProgressCard extends StatelessWidget {
@@ -435,8 +418,12 @@ class _TodayProgressCard extends StatelessWidget {
     final remaining = math.max(goal - steps, 0);
     final scheme = Theme.of(context).colorScheme;
     return Semantics(
-      label:
-          'Today’s health progress, $steps of $goal steps, $percentage percent, $remaining remaining',
+      label: context.l10n.todayHealthProgressSemantics(
+        steps,
+        goal,
+        percentage,
+        remaining,
+      ),
       child: AppCard(
         color: scheme.primaryContainer,
         child: Column(
@@ -446,13 +433,13 @@ class _TodayProgressCard extends StatelessWidget {
               children: <Widget>[
                 Expanded(
                   child: Text(
-                    'Today’s health progress',
+                    context.l10n.todayHealthProgress,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
                 AppIconButton(
                   icon: Icons.edit_outlined,
-                  tooltip: 'Edit daily goal',
+                  tooltip: context.l10n.editDailyGoal,
                   onPressed: onEditGoal,
                 ),
               ],
@@ -460,7 +447,7 @@ class _TodayProgressCard extends StatelessWidget {
             AnimatedSwitcher(
               duration: AppDurations.medium,
               child: Text(
-                '${formatCampaignNumber(steps)} steps',
+                context.l10n.stepCount(steps),
                 key: ValueKey<int>(steps),
                 style: Theme.of(context).textTheme.displaySmall?.copyWith(
                   color: scheme.onPrimaryContainer,
@@ -470,8 +457,11 @@ class _TodayProgressCard extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              '$percentage% of ${formatCampaignNumber(goal)}  •  '
-              '${formatCampaignNumber(remaining)} remaining',
+              context.l10n.progressOfGoal(
+                percentage,
+                formatCampaignNumber(goal),
+                formatCampaignNumber(remaining),
+              ),
             ),
             const SizedBox(height: AppSpacing.md),
             TweenAnimationBuilder<double>(
@@ -508,19 +498,19 @@ class _HealthStats extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = <({String label, int value, IconData icon, Color color})>[
       (
-        label: 'Confirmed',
+        label: context.l10n.confirmedSteps,
         value: confirmed,
         icon: Icons.verified_outlined,
         color: context.appTheme.success,
       ),
       (
-        label: 'Validating',
+        label: context.l10n.validating,
         value: validating,
         icon: Icons.hourglass_top,
         color: context.appTheme.warning,
       ),
       (
-        label: 'Remaining',
+        label: context.l10n.remaining,
         value: remaining,
         icon: Icons.flag_outlined,
         color: Theme.of(context).colorScheme.secondary,
@@ -541,7 +531,7 @@ class _HealthStats extends StatelessWidget {
             children: <Widget>[
               for (final item in items)
                 Semantics(
-                  label: '${item.label}, ${item.value} steps',
+                  label: context.l10n.stepCount(item.value),
                   child: SizedBox(
                     width: width,
                     child: Column(
@@ -593,7 +583,7 @@ class _CampaignOverview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (campaignController.viewState == CampaignEnrollmentViewState.loading) {
-      return const AppCard(
+      return AppCard(
         child: Row(
           children: <Widget>[
             SizedBox.square(
@@ -601,7 +591,7 @@ class _CampaignOverview extends StatelessWidget {
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
             SizedBox(width: AppSpacing.md),
-            Text('Loading campaign progress…'),
+            Text(context.l10n.loadingCampaignProgress),
           ],
         ),
       );
@@ -610,7 +600,7 @@ class _CampaignOverview extends StatelessWidget {
       return AppErrorView(
         message:
             campaignController.userMessage ??
-            'Campaign progress is temporarily unavailable.',
+            context.l10n.campaignProgressUnavailable,
         onRetry: campaignController.initialize,
         compact: true,
       );
@@ -633,7 +623,7 @@ class _CampaignOverview extends StatelessWidget {
     final recentCampaign = recent == null
         ? null
         : campaignController.campaignFor(recent);
-    final featured = _featuredCampaign();
+    final featured = _featuredCampaign(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -662,7 +652,7 @@ class _CampaignOverview extends StatelessWidget {
     );
   }
 
-  Campaign? _featuredCampaign() {
+  Campaign? _featuredCampaign(BuildContext context) {
     final now = DateTime.now();
     final eligible = campaignController.campaigns
         .where((campaign) {
@@ -674,13 +664,12 @@ class _CampaignOverview extends StatelessWidget {
         })
         .toList(growable: false);
     final hasPreference =
-        rewardInterests.isNotEmpty &&
-        !rewardInterests.contains('No preference');
+        rewardInterests.isNotEmpty && !rewardInterests.contains('بدون ترجیح');
     if (hasPreference) {
       for (final campaign in eligible) {
         if (campaign.isFeatured &&
             rewardInterests.contains(
-              campaignCategoryLabel(campaign.category),
+              campaignCategoryLabel(context.l10n, campaign.category),
             )) {
           return campaign;
         }
@@ -692,7 +681,7 @@ class _CampaignOverview extends StatelessWidget {
     if (hasPreference) {
       for (final campaign in eligible) {
         if (rewardInterests.contains(
-          campaignCategoryLabel(campaign.category),
+          campaignCategoryLabel(context.l10n, campaign.category),
         )) {
           return campaign;
         }
@@ -726,7 +715,7 @@ class _ActiveCampaignCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           Text(
-            'Active campaign',
+            context.l10n.activeCampaign,
             style: Theme.of(context).textTheme.labelLarge,
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -739,32 +728,43 @@ class _ActiveCampaignCard extends StatelessWidget {
           Text(campaign.title, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: AppSpacing.md),
           Semantics(
-            label: 'Campaign progress ${(progress * 100).round()} percent',
+            label: context.l10n.campaignProgressPercent(
+              (progress * 100).round(),
+            ),
             child: LinearProgressIndicator(value: progress, minHeight: 9),
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
             stepTarget
-                ? '${formatCampaignNumber(enrollment.totalEligibleSteps)} / '
-                      '${formatCampaignNumber(campaign.targetSteps ?? 0)} campaign steps'
-                : '${controller.completedGoalDays(enrollment)} of '
-                      '${campaign.requiredGoalDays} goal days completed',
+                ? context.l10n.campaignStepProgress(
+                    formatCampaignNumber(enrollment.totalEligibleSteps),
+                    formatCampaignNumber(campaign.targetSteps ?? 0),
+                  )
+                : context.l10n.campaignGoalDayProgress(
+                    controller.completedGoalDays(enrollment),
+                    campaign.requiredGoalDays ?? 0,
+                  ),
           ),
           if (!stepTarget)
             Text(
-              '${formatCampaignNumber(controller.eligibleStepsToday(enrollment))} / '
-              '${formatCampaignNumber(enrollment.goalAtEnrollment ?? 0)} eligible steps today',
+              context.l10n.eligibleStepsToday(
+                formatCampaignNumber(controller.eligibleStepsToday(enrollment)),
+                formatCampaignNumber(enrollment.goalAtEnrollment ?? 0),
+              ),
             ),
           const SizedBox(height: AppSpacing.xs),
-          Text(campaignTiming(campaign, DateTime.now())),
-          Text('Reward: ${campaign.reward.discountLabel}'),
+          Text(campaignTiming(context.l10n, campaign, DateTime.now())),
+          Text(context.l10n.rewardValue(campaign.reward.discountLabel)),
           const SizedBox(height: AppSpacing.md),
           Wrap(
             spacing: AppSpacing.sm,
             children: <Widget>[
-              AppButton(label: 'Continue Campaign', onPressed: onContinue),
               AppButton(
-                label: 'Explore more',
+                label: context.l10n.continueCampaign,
+                onPressed: onContinue,
+              ),
+              AppButton(
+                label: context.l10n.exploreMore,
                 variant: AppButtonVariant.text,
                 onPressed: onExplore,
               ),
@@ -802,33 +802,36 @@ class _CompletedCampaignCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          const AppStatusChip(
-            label: 'Campaign completed',
+          AppStatusChip(
+            label: context.l10n.campaignCompleted,
             status: AppStatus.success,
             icon: Icons.verified_outlined,
           ),
           if (!points && claim == null) ...<Widget>[
             const SizedBox(height: AppSpacing.xs),
-            Text('Reward ready', style: Theme.of(context).textTheme.labelLarge),
+            Text(
+              context.l10n.rewardReady,
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
           ],
           const SizedBox(height: AppSpacing.sm),
           Text(campaign.title, style: Theme.of(context).textTheme.titleLarge),
           Text(
             points
-                ? '${campaign.reward.pointsAmount ?? 0} points earned'
+                ? context.l10n.pointsEarned(campaign.reward.pointsAmount ?? 0)
                 : claim == null
-                ? '${campaign.reward.title} is ready to claim'
-                : '${campaign.reward.title} unlocked',
+                ? context.l10n.rewardReadyToClaim(campaign.reward.title)
+                : context.l10n.rewardUnlocked(campaign.reward.title),
           ),
           const SizedBox(height: AppSpacing.md),
           Align(
-            alignment: Alignment.centerLeft,
+            alignment: AlignmentDirectional.centerStart,
             child: AppButton(
               label: points
-                  ? 'View Rewards'
+                  ? context.l10n.viewRewards
                   : claim == null
-                  ? 'Claim Reward'
-                  : 'View Reward',
+                  ? context.l10n.claimReward
+                  : context.l10n.viewReward,
               isLoading: rewardsController.isSaving,
               onPressed: points
                   ? onOpenRewards
@@ -839,9 +842,9 @@ class _CompletedCampaignCard extends StatelessWidget {
           ),
           if (!points && rewardsController.directRewardsReady.length > 1)
             Align(
-              alignment: Alignment.centerLeft,
+              alignment: AlignmentDirectional.centerStart,
               child: AppButton(
-                label: 'View all',
+                label: context.l10n.viewAll,
                 variant: AppButtonVariant.text,
                 onPressed: onOpenRewards,
               ),
@@ -863,20 +866,20 @@ class _FeaturedCampaignCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         Text(
-          'Featured challenge',
+          context.l10n.featuredChallenge,
           style: Theme.of(context).textTheme.labelLarge,
         ),
         Text(campaign.brand.name),
         Text(campaign.title, style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: AppSpacing.sm),
-        Text(campaignGoalSummary(campaign)),
-        Text('Reward: ${campaign.reward.discountLabel}'),
-        Text(campaignTiming(campaign, DateTime.now())),
+        Text(campaignGoalSummary(context.l10n, campaign)),
+        Text(context.l10n.rewardValue(campaign.reward.discountLabel)),
+        Text(campaignTiming(context.l10n, campaign, DateTime.now())),
         const SizedBox(height: AppSpacing.md),
         Align(
-          alignment: Alignment.centerLeft,
+          alignment: AlignmentDirectional.centerStart,
           child: AppButton(
-            label: 'View Campaign',
+            label: context.l10n.viewCampaign,
             variant: AppButtonVariant.outlined,
             onPressed: onView,
           ),
@@ -902,18 +905,16 @@ class _CampaignDiscoveryPrompt extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               Text(
-                'Ready for a walking challenge?',
+                context.l10n.walkingChallengeQuestion,
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: AppSpacing.xs),
-              const Text(
-                'Explore campaigns and unlock rewards from participating brands.',
-              ),
+              Text(context.l10n.walkingChallengeDescription),
               const SizedBox(height: AppSpacing.sm),
               Align(
-                alignment: Alignment.centerLeft,
+                alignment: AlignmentDirectional.centerStart,
                 child: AppButton(
-                  label: 'Explore Campaigns',
+                  label: context.l10n.viewCampaigns,
                   variant: AppButtonVariant.text,
                   onPressed: onExplore,
                 ),
@@ -937,12 +938,11 @@ class _RewardsSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (controller.viewState == RewardsViewState.loading) {
-      return const AppCard(child: Text('Loading rewards…'));
+      return AppCard(child: Text(context.l10n.loadingRewards));
     }
     if (controller.viewState == RewardsViewState.error) {
       return AppErrorView(
-        message:
-            controller.userMessage ?? 'Rewards are temporarily unavailable.',
+        message: controller.userMessage ?? context.l10n.rewardsUnavailable,
         onRetry: controller.initialize,
         compact: true,
       );
@@ -965,27 +965,23 @@ class _RewardsSummary extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                Text('Rewards', style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  context.l10n.rewards,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 const SizedBox(height: AppSpacing.xs),
                 if (hasActivity) ...<Widget>[
-                  Text('${controller.wallet.balance} points available'),
-                  if (ready > 0)
-                    Text(
-                      '$ready reward${ready == 1 ? '' : 's'} ready to claim',
-                    ),
+                  Text(context.l10n.pointsAvailable(controller.wallet.balance)),
+                  if (ready > 0) Text(context.l10n.rewardsReadyToClaim(ready)),
                   if (availableCoupons > 0)
-                    Text(
-                      '$availableCoupons available coupon${availableCoupons == 1 ? '' : 's'}',
-                    ),
+                    Text(context.l10n.availableCoupons(availableCoupons)),
                 ] else
-                  const Text(
-                    'Complete eligible campaigns to start earning rewards.',
-                  ),
+                  Text(context.l10n.earnRewardsDescription),
                 const SizedBox(height: AppSpacing.sm),
                 Align(
-                  alignment: Alignment.centerLeft,
+                  alignment: AlignmentDirectional.centerStart,
                   child: AppButton(
-                    label: 'Open Rewards',
+                    label: context.l10n.openRewards,
                     variant: AppButtonVariant.text,
                     onPressed: onOpenRewards,
                   ),
@@ -1005,14 +1001,15 @@ class _TrackingStatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final label = !snapshot.isTracking
-        ? 'Tracking paused'
+        ? l10n.trackingPaused
         : !snapshot.sensorReady
-        ? 'Preparing sensor'
-        : _activityLabel(snapshot.activity);
+        ? l10n.preparingSensor
+        : snapshot.activity.localizedLabel(l10n);
     final validation = snapshot.provisionalSteps > 0
-        ? 'Validating recent steps'
-        : 'Up to date';
+        ? l10n.validatingRecentSteps
+        : l10n.upToDate;
     return AppCard(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1027,17 +1024,19 @@ class _TrackingStatusCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 Text(
-                  snapshot.isTracking ? 'Tracking active' : 'Tracking paused',
+                  snapshot.isTracking
+                      ? l10n.trackingActive
+                      : l10n.trackingStopped,
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(label),
                 Text(
                   snapshot.sensorReady
-                      ? 'Step sensor ready'
+                      ? l10n.sensorReady
                       : snapshot.isTracking
-                      ? 'Step sensor preparing'
-                      : 'Step sensor inactive',
+                      ? l10n.sensorPreparing
+                      : l10n.sensorInactive,
                 ),
                 if (snapshot.isTracking) Text(validation),
               ],
@@ -1047,13 +1046,4 @@ class _TrackingStatusCard extends StatelessWidget {
       ),
     );
   }
-
-  String _activityLabel(TrackingActivity activity) => switch (activity) {
-    TrackingActivity.walking => 'Walking',
-    TrackingActivity.running => 'Running',
-    TrackingActivity.onBicycle => 'Cycling',
-    TrackingActivity.inVehicle => 'In vehicle',
-    TrackingActivity.still => 'Detecting activity',
-    TrackingActivity.unknown => 'Detecting activity',
-  };
 }

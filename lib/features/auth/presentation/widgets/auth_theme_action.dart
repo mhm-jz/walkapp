@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:walkingapp/l10n/app_localizations_extension.dart';
 
 import '../../../../core/design_system/components/app_button.dart';
 import '../../../../core/preferences/app_settings_controller.dart';
@@ -11,29 +12,29 @@ class AuthThemeAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PopupMenuButton<ThemeMode>(
-      tooltip: 'Choose theme',
+      tooltip: context.l10n.chooseTheme,
       icon: Icon(_icon(settingsController.themeMode)),
       onSelected: settingsController.setThemeMode,
-      itemBuilder: (context) => const <PopupMenuEntry<ThemeMode>>[
+      itemBuilder: (context) => <PopupMenuEntry<ThemeMode>>[
         PopupMenuItem(
           value: ThemeMode.system,
           child: ListTile(
             leading: Icon(Icons.brightness_auto),
-            title: Text('System theme'),
+            title: Text(context.l10n.systemTheme),
           ),
         ),
         PopupMenuItem(
           value: ThemeMode.light,
           child: ListTile(
             leading: Icon(Icons.light_mode_outlined),
-            title: Text('Light theme'),
+            title: Text(context.l10n.lightTheme),
           ),
         ),
         PopupMenuItem(
           value: ThemeMode.dark,
           child: ListTile(
             leading: Icon(Icons.dark_mode_outlined),
-            title: Text('Dark theme'),
+            title: Text(context.l10n.darkTheme),
           ),
         ),
       ],
@@ -63,7 +64,7 @@ class PasswordVisibilityButton extends StatelessWidget {
       icon: obscured
           ? Icons.visibility_outlined
           : Icons.visibility_off_outlined,
-      tooltip: obscured ? 'Show password' : 'Hide password',
+      tooltip: obscured ? context.l10n.showPassword : context.l10n.hidePassword,
       onPressed: onPressed,
     );
   }

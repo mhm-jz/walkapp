@@ -3,18 +3,27 @@ import '../../campaigns/domain/campaign_enrollment_status.dart';
 import '../../history/application/daily_step_history_controller.dart';
 import '../../history/domain/daily_step_record.dart';
 
+enum HealthAchievementType {
+  firstSteps,
+  goalGetter,
+  threeActiveDays,
+  consistentWalker,
+  weeklyExplorer,
+  campaignFinisher,
+}
+
+enum HealthAchievementCategory { health, campaign }
+
 final class HealthAchievement {
   const HealthAchievement({
-    required this.title,
-    required this.description,
+    required this.type,
     required this.category,
     required this.isUnlocked,
     this.unlockedAt,
   });
 
-  final String title;
-  final String description;
-  final String category;
+  final HealthAchievementType type;
+  final HealthAchievementCategory category;
   final bool isUnlocked;
   final DateTime? unlockedAt;
 }
@@ -44,40 +53,14 @@ abstract final class HealthAchievementEvaluator {
       }
     }
     return <HealthAchievement>[
-      _achievement(
-        'First Steps',
-        'Record at least 1,000 confirmed steps in one day.',
-        'Health',
-        firstThousand,
-      ),
-      _achievement(
-        'Goal Getter',
-        'Reach the recorded daily goal for the first time.',
-        'Health',
-        firstGoal,
-      ),
-      _achievement(
-        'Three Active Days',
-        'Record confirmed steps on three separate dates.',
-        'Health',
-        threeActive,
-      ),
-      _achievement(
-        'Consistent Walker',
-        'Reach the daily goal on three consecutive dates.',
-        'Health',
-        consistentAt,
-      ),
-      _achievement(
-        'Weekly Explorer',
-        'Record 50,000 confirmed steps across seven consecutive days.',
-        'Health',
-        explorerAt,
-      ),
+      _achievement(HealthAchievementType.firstSteps, firstThousand),
+      _achievement(HealthAchievementType.goalGetter, firstGoal),
+      _achievement(HealthAchievementType.threeActiveDays, threeActive),
+      _achievement(HealthAchievementType.consistentWalker, consistentAt),
+      _achievement(HealthAchievementType.weeklyExplorer, explorerAt),
       HealthAchievement(
-        title: 'Campaign Finisher',
-        description: 'Complete one walking campaign.',
-        category: 'Campaign',
+        type: HealthAchievementType.campaignFinisher,
+        category: HealthAchievementCategory.campaign,
         isUnlocked: campaignCompletion != null,
         unlockedAt: campaignCompletion?.completedAt,
       ),
@@ -85,14 +68,11 @@ abstract final class HealthAchievementEvaluator {
   }
 
   static HealthAchievement _achievement(
-    String title,
-    String description,
-    String category,
+    HealthAchievementType type,
     DailyStepRecord? record,
   ) => HealthAchievement(
-    title: title,
-    description: description,
-    category: category,
+    type: type,
+    category: HealthAchievementCategory.health,
     isUnlocked: record != null,
     unlockedAt: record == null
         ? null

@@ -4,6 +4,7 @@ import '../../../core/design_system/components/app_button.dart';
 import '../../../core/design_system/components/app_card.dart';
 import '../../../core/design_system/components/app_feedback.dart';
 import '../../../core/design_system/tokens/app_tokens.dart';
+import '../../../l10n/app_localizations_extension.dart';
 import '../application/rewards_controller.dart';
 import '../domain/reward.dart';
 import '../domain/reward_status.dart';
@@ -24,35 +25,34 @@ class RewardDetailsPage extends StatelessWidget {
     final balance = controller.wallet.balance;
     final confirmed = await AppDialog.show<bool>(
       context,
-      title: 'Redeem ${reward.title}?',
+      title: context.l10n.redeemRewardQuestion(reward.title),
       content: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Text('Points required: ${reward.requiredPoints}'),
-            Text('Current balance: $balance'),
+            Text(context.l10n.pointsRequired(reward.requiredPoints)),
+            Text(context.l10n.currentBalance(balance)),
             Text(
-              'Balance after redemption: ${balance - reward.requiredPoints}',
+              context.l10n.balanceAfterRedemption(
+                balance - reward.requiredPoints,
+              ),
             ),
             const SizedBox(height: AppSpacing.md),
-            Text('Important terms: ${reward.terms.join(' ')}'),
+            Text(context.l10n.importantTerms(reward.terms.join(' '))),
             const SizedBox(height: AppSpacing.md),
-            const Text(
-              'The resulting coupon is generated locally for MVP demonstration '
-              'and cannot be validated by a real merchant.',
-            ),
+            Text(context.l10n.localCouponDisclaimer),
           ],
         ),
       ),
       actions: <Widget>[
         AppButton(
-          label: 'Cancel',
+          label: context.l10n.cancel,
           variant: AppButtonVariant.text,
           onPressed: () => Navigator.of(context).pop(false),
         ),
         AppButton(
-          label: 'Redeem Reward',
+          label: context.l10n.claimReward,
           onPressed: () => Navigator.of(context).pop(true),
         ),
       ],
@@ -78,8 +78,8 @@ class RewardDetailsPage extends StatelessWidget {
     AppSnackbar.show(
       context,
       result == RewardActionResult.insufficientPoints
-          ? 'Your point balance is no longer high enough.'
-          : controller.userMessage ?? 'The reward could not be redeemed.',
+          ? context.l10n.insufficientBalanceMessage
+          : controller.userMessage ?? context.l10n.rewardRedeemError,
       isError: true,
     );
   }
@@ -87,7 +87,7 @@ class RewardDetailsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Reward Details')),
+      appBar: AppBar(title: Text(context.l10n.rewardDetails)),
       body: AnimatedBuilder(
         animation: controller,
         builder: (context, child) {
@@ -123,14 +123,19 @@ class RewardDetailsPage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: <Widget>[
                           Text(
-                            '${reward.requiredPoints} points',
+                            context.l10n.pointsValue(reward.requiredPoints),
                             style: Theme.of(context).textTheme.headlineSmall,
                           ),
-                          Text('Current balance: $balance points'),
+                          Text(context.l10n.currentBalancePoints(balance)),
                           Text(
                             status == RewardStatus.available
-                                ? 'After redemption: $after points'
-                                : '${(reward.requiredPoints - balance).clamp(0, reward.requiredPoints)} more points needed',
+                                ? context.l10n.afterRedemptionPoints(after)
+                                : context.l10n.morePointsNeeded(
+                                    (reward.requiredPoints - balance).clamp(
+                                      0,
+                                      reward.requiredPoints,
+                                    ),
+                                  ),
                           ),
                         ],
                       ),
@@ -146,11 +151,18 @@ class RewardDetailsPage extends StatelessWidget {
                           ),
                           const Divider(height: AppSpacing.xl),
                           Text(
-                            'Minimum purchase: ${reward.minimumPurchaseDescription}',
+                            context.l10n.minimumPurchaseValue(
+                              reward.minimumPurchaseDescription,
+                            ),
                           ),
                           const SizedBox(height: AppSpacing.sm),
                           Text(
-                            'Where to use: ${rewardChannelLabel(reward.usageChannel)}',
+                            context.l10n.whereToUseValue(
+                              rewardChannelLabel(
+                                context.l10n,
+                                reward.usageChannel,
+                              ),
+                            ),
                           ),
                           const SizedBox(height: AppSpacing.sm),
                           Text(reward.expirationDescription),
@@ -158,25 +170,25 @@ class RewardDetailsPage extends StatelessWidget {
                           Text(reward.inventoryLabel),
                           const Divider(height: AppSpacing.xl),
                           Text(
-                            'Terms',
+                            context.l10n.terms,
                             style: Theme.of(context).textTheme.titleSmall,
                           ),
-                          for (final term in reward.terms) Text('• $term'),
+                          for (final term in reward.terms)
+                            Text(
+                              '• ${localizedRewardTerm(context.l10n, term)}',
+                            ),
                         ],
                       ),
                     ),
                     const SizedBox(height: AppSpacing.lg),
-                    const AppCard(
+                    AppCard(
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                           Icon(Icons.science_outlined),
-                          SizedBox(width: AppSpacing.sm),
+                          const SizedBox(width: AppSpacing.sm),
                           Expanded(
-                            child: Text(
-                              'Local prototype: points and coupons have no cash '
-                              'value and cannot be validated by a merchant.',
-                            ),
+                            child: Text(context.l10n.localRewardDisclaimer),
                           ),
                         ],
                       ),
@@ -184,13 +196,17 @@ class RewardDetailsPage extends StatelessWidget {
                     const SizedBox(height: AppSpacing.lg),
                     AppButton(
                       label: switch (status) {
-                        RewardStatus.available =>
-                          'Redeem for ${reward.requiredPoints} points',
+                        RewardStatus.available => context.l10n.redeemForPoints(
+                          reward.requiredPoints,
+                        ),
                         RewardStatus.insufficientPoints =>
-                          '${reward.requiredPoints - balance} more points needed',
-                        RewardStatus.claimed => 'View Reward',
-                        RewardStatus.expired => 'Reward expired',
-                        RewardStatus.unavailable => 'Currently unavailable',
+                          context.l10n.morePointsNeeded(
+                            reward.requiredPoints - balance,
+                          ),
+                        RewardStatus.claimed => context.l10n.viewClaimedReward,
+                        RewardStatus.expired => context.l10n.expiredStatus,
+                        RewardStatus.unavailable =>
+                          context.l10n.unavailableStatus,
                       },
                       icon: status == RewardStatus.claimed
                           ? Icons.open_in_new

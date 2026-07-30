@@ -8,6 +8,7 @@ import '../../../core/design_system/components/app_selection.dart';
 import '../../../core/design_system/extensions/app_theme_extension.dart';
 import '../../../core/design_system/tokens/app_tokens.dart';
 import '../../../core/preferences/app_settings_controller.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../step_counter/presentation/widgets/daily_goal_sheet.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -23,30 +24,30 @@ class SettingsPage extends StatelessWidget {
   final bool showHeading;
 
   Future<void> _editGoal(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
     final goal = await DailyGoalSheet.show(
       context,
       currentGoal: settingsController.dailyGoal,
     );
     if (goal == null || !context.mounted) return;
     await settingsController.setDailyGoal(goal);
-    if (context.mounted) AppSnackbar.show(context, 'Daily goal updated');
+    if (context.mounted) AppSnackbar.show(context, l10n.dailyGoalUpdated);
   }
 
   Future<void> _confirmLogout(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
     final confirmed = await AppDialog.show<bool>(
       context,
-      title: 'Log out?',
-      content: const Text(
-        'You’ll return to Login. Your step history and preferences will stay on this device.',
-      ),
+      title: l10n.logoutQuestion,
+      content: Text(l10n.logoutDescription),
       actions: <Widget>[
         AppButton(
-          label: 'Cancel',
+          label: l10n.cancel,
           variant: AppButtonVariant.text,
           onPressed: () => Navigator.of(context).pop(false),
         ),
         AppButton(
-          label: 'Log out',
+          label: l10n.logout,
           variant: AppButtonVariant.destructive,
           onPressed: () => Navigator.of(context).pop(true),
         ),
@@ -69,6 +70,7 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return SafeArea(
       bottom: false,
       child: AnimatedBuilder(
@@ -76,7 +78,7 @@ class SettingsPage extends StatelessWidget {
         builder: (context, child) => CustomScrollView(
           slivers: <Widget>[
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(
+              padding: const EdgeInsetsDirectional.fromSTEB(
                 AppSpacing.lg,
                 AppSpacing.xl,
                 AppSpacing.lg,
@@ -93,18 +95,18 @@ class SettingsPage extends StatelessWidget {
                       children: <Widget>[
                         if (showHeading) ...<Widget>[
                           Text(
-                            'Settings',
+                            l10n.settings,
                             style: Theme.of(context).textTheme.headlineMedium,
                           ),
                           const SizedBox(height: AppSpacing.xs),
                         ],
                         Text(
-                          'Personalize your walking experience.',
+                          l10n.personalizeWalkingExperience,
                           style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(color: context.appTheme.textSecondary),
                         ),
                         const SizedBox(height: AppSpacing.xl),
-                        _SectionTitle(title: 'Appearance'),
+                        _SectionTitle(title: l10n.appearance),
                         const SizedBox(height: AppSpacing.sm),
                         AppCard(
                           child: Wrap(
@@ -113,24 +115,50 @@ class SettingsPage extends StatelessWidget {
                             children: <Widget>[
                               _themeButton(
                                 mode: ThemeMode.system,
-                                label: 'System',
+                                label: l10n.systemTheme,
                                 icon: Icons.brightness_auto,
                               ),
                               _themeButton(
                                 mode: ThemeMode.light,
-                                label: 'Light',
+                                label: l10n.lightTheme,
                                 icon: Icons.light_mode_outlined,
                               ),
                               _themeButton(
                                 mode: ThemeMode.dark,
-                                label: 'Dark',
+                                label: l10n.darkTheme,
                                 icon: Icons.dark_mode_outlined,
                               ),
                             ],
                           ),
                         ),
                         const SizedBox(height: AppSpacing.xl),
-                        _SectionTitle(title: 'Daily goal'),
+                        _SectionTitle(title: l10n.appLanguage),
+                        const SizedBox(height: AppSpacing.sm),
+                        AppCard(
+                          padding: EdgeInsets.zero,
+                          child: RadioGroup<String>(
+                            groupValue: settingsController.locale.languageCode,
+                            onChanged: (value) {
+                              if (value != null) {
+                                settingsController.setLocale(Locale(value));
+                              }
+                            },
+                            child: Column(
+                              children: <Widget>[
+                                RadioListTile<String>(
+                                  value: 'fa',
+                                  title: Text(l10n.persianLanguage),
+                                ),
+                                RadioListTile<String>(
+                                  value: 'en',
+                                  title: Text(l10n.englishLanguage),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
+                        _SectionTitle(title: l10n.dailyGoal),
                         const SizedBox(height: AppSpacing.sm),
                         AppCard(
                           child: Row(
@@ -145,13 +173,15 @@ class SettingsPage extends StatelessWidget {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: <Widget>[
                                     Text(
-                                      '${settingsController.dailyGoal} steps',
+                                      l10n.dailyGoalStepCount(
+                                        settingsController.dailyGoal,
+                                      ),
                                       style: Theme.of(
                                         context,
                                       ).textTheme.titleMedium,
                                     ),
                                     Text(
-                                      'Your persisted target for each day',
+                                      l10n.persistedDailyTarget,
                                       style: Theme.of(context)
                                           .textTheme
                                           .bodySmall
@@ -165,14 +195,14 @@ class SettingsPage extends StatelessWidget {
                               ),
                               AppIconButton(
                                 icon: Icons.edit_outlined,
-                                tooltip: 'Edit daily goal',
+                                tooltip: l10n.editDailyGoal,
                                 onPressed: () => _editGoal(context),
                               ),
                             ],
                           ),
                         ),
                         const SizedBox(height: AppSpacing.xl),
-                        _SectionTitle(title: 'In-app notifications'),
+                        _SectionTitle(title: l10n.inAppNotifications),
                         const SizedBox(height: AppSpacing.sm),
                         AppCard(
                           padding: EdgeInsets.zero,
@@ -180,14 +210,14 @@ class SettingsPage extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: <Widget>[
                               Padding(
-                                padding: const EdgeInsets.fromLTRB(
+                                padding: const EdgeInsetsDirectional.fromSTEB(
                                   AppSpacing.lg,
                                   AppSpacing.lg,
                                   AppSpacing.lg,
                                   AppSpacing.sm,
                                 ),
                                 child: Text(
-                                  'WalkApp checks these reminders while the app is open or when you return to it. System notifications are not enabled in this prototype.',
+                                  l10n.reminderPrototypeDescription,
                                   style: Theme.of(context).textTheme.bodySmall
                                       ?.copyWith(
                                         color: context.appTheme.textSecondary,
@@ -195,7 +225,7 @@ class SettingsPage extends StatelessWidget {
                                 ),
                               ),
                               AppSwitch(
-                                label: 'Daily goal reminder',
+                                label: l10n.dailyGoalReminder,
                                 value: settingsController
                                     .inAppDailyGoalReminderEnabled,
                                 onChanged: (value) => settingsController
@@ -206,7 +236,7 @@ class SettingsPage extends StatelessWidget {
                                 ListTile(
                                   minTileHeight: AppSizes.minTouchTarget,
                                   leading: const Icon(Icons.schedule_outlined),
-                                  title: const Text('Reminder time'),
+                                  title: Text(l10n.reminderTime),
                                   subtitle: Text(
                                     _formatTime(
                                       context,
@@ -219,21 +249,21 @@ class SettingsPage extends StatelessWidget {
                                   onTap: () => _pickReminderTime(context),
                                 ),
                               AppSwitch(
-                                label: 'Goal completion updates',
+                                label: l10n.goalCompletionUpdates,
                                 value: settingsController
                                     .inAppGoalCompletionEnabled,
                                 onChanged: settingsController
                                     .setInAppGoalCompletionEnabled,
                               ),
                               AppSwitch(
-                                label: 'Campaign updates',
+                                label: l10n.campaignUpdates,
                                 value: settingsController
                                     .inAppCampaignUpdatesEnabled,
                                 onChanged: settingsController
                                     .setInAppCampaignUpdatesEnabled,
                               ),
                               AppSwitch(
-                                label: 'Reward updates',
+                                label: l10n.rewardUpdates,
                                 value: settingsController
                                     .inAppRewardUpdatesEnabled,
                                 onChanged: settingsController
@@ -243,38 +273,36 @@ class SettingsPage extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: AppSpacing.xl),
-                        _SectionTitle(title: 'Tracking information'),
+                        _SectionTitle(title: l10n.trackingInformation),
                         const SizedBox(height: AppSpacing.sm),
-                        const AppCard(
+                        AppCard(
                           child: Column(
                             children: <Widget>[
                               _InformationRow(
                                 icon: Icons.phone_android_outlined,
-                                title: 'Background tracking',
-                                description:
-                                    'Steps continue to be processed while tracking is active.',
+                                title: l10n.backgroundTracking,
+                                description: l10n.backgroundTrackingDescription,
                               ),
                               Divider(height: AppSpacing.xl),
                               _InformationRow(
                                 icon: Icons.fact_check_outlined,
-                                title: 'Step validation',
-                                description:
-                                    'Candidate steps are confirmed using activity information.',
+                                title: l10n.stepValidation,
+                                description: l10n.stepValidationDescription,
                               ),
                               Divider(height: AppSpacing.xl),
                               _InformationRow(
                                 icon: Icons.directions_walk_outlined,
-                                title: 'Activity detection',
+                                title: l10n.activityRecognition,
                                 description:
-                                    'Walking, running, cycling, and vehicle activity help validate steps.',
+                                    l10n.activityRecognitionDescription,
                               ),
                             ],
                           ),
                         ),
                         const SizedBox(height: AppSpacing.xl),
-                        _SectionTitle(title: 'About'),
+                        _SectionTitle(title: l10n.about),
                         const SizedBox(height: AppSpacing.sm),
-                        const AppCard(
+                        AppCard(
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[
@@ -291,9 +319,7 @@ class SettingsPage extends StatelessWidget {
                                       ),
                                     ),
                                     SizedBox(height: AppSpacing.xs),
-                                    Text(
-                                      'A focused step tracker for building a healthier daily routine.',
-                                    ),
+                                    Text(l10n.aboutDescription),
                                   ],
                                 ),
                               ),
@@ -301,23 +327,23 @@ class SettingsPage extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: AppSpacing.xl),
-                        _SectionTitle(title: 'Account'),
+                        _SectionTitle(title: l10n.account),
                         const SizedBox(height: AppSpacing.sm),
                         AppCard(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: <Widget>[
-                              const Align(
-                                alignment: Alignment.centerLeft,
+                              Align(
+                                alignment: AlignmentDirectional.centerStart,
                                 child: AppStatusChip(
-                                  label: 'UI-only account',
+                                  label: l10n.prototypeAccount,
                                   status: AppStatus.neutral,
                                   icon: Icons.person_outline,
                                 ),
                               ),
                               const SizedBox(height: AppSpacing.md),
                               AppButton(
-                                label: 'Log out',
+                                label: l10n.logout,
                                 variant: AppButtonVariant.destructive,
                                 icon: Icons.logout,
                                 expanded: true,

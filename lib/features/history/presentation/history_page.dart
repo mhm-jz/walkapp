@@ -1,12 +1,14 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/design_system/components/app_card.dart';
 import '../../../core/design_system/components/app_feedback.dart';
 import '../../../core/design_system/components/app_status_chip.dart';
 import '../../../core/design_system/extensions/app_theme_extension.dart';
 import '../../../core/design_system/tokens/app_tokens.dart';
+import '../../../l10n/app_localizations_extension.dart';
 import '../../campaigns/presentation/campaign_formatters.dart';
 import '../application/daily_step_history_controller.dart';
 import '../domain/daily_step_record.dart';
@@ -42,7 +44,7 @@ class _HistoryPageState extends State<HistoryPage> {
           return CustomScrollView(
             slivers: <Widget>[
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(
+                padding: const EdgeInsetsDirectional.fromSTEB(
                   AppSpacing.lg,
                   AppSpacing.lg,
                   AppSpacing.lg,
@@ -59,33 +61,30 @@ class _HistoryPageState extends State<HistoryPage> {
                         children: <Widget>[
                           if (widget.showHeading) ...<Widget>[
                             Text(
-                              'History',
+                              context.l10n.history,
                               style: Theme.of(context).textTheme.headlineMedium,
                             ),
                             const SizedBox(height: AppSpacing.xs),
                           ],
                           Text(
-                            'Review your confirmed walking progress over time.',
+                            context.l10n.historyDescription,
                             style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(
                                   color: context.appTheme.textSecondary,
                                 ),
                           ),
                           const SizedBox(height: AppSpacing.sm),
-                          const Text(
-                            'Today may include validating steps on Home. '
-                            'Completed days in History use confirmed steps.',
-                          ),
+                          Text(context.l10n.historyValidationExplanation),
                           const SizedBox(height: AppSpacing.lg),
                           SegmentedButton<int>(
-                            segments: const <ButtonSegment<int>>[
+                            segments: <ButtonSegment<int>>[
                               ButtonSegment<int>(
                                 value: 7,
-                                label: Text('7 days'),
+                                label: Text(context.l10n.sevenDays),
                               ),
                               ButtonSegment<int>(
                                 value: 30,
-                                label: Text('30 days'),
+                                label: Text(context.l10n.thirtyDays),
                               ),
                             ],
                             selected: <int>{_days},
@@ -95,9 +94,9 @@ class _HistoryPageState extends State<HistoryPage> {
                           const SizedBox(height: AppSpacing.lg),
                           if (widget.controller.viewState ==
                               DailyHistoryViewState.loading)
-                            const Center(
+                            Center(
                               child: AppLoadingIndicator(
-                                label: 'Loading walking history',
+                                label: context.l10n.loadingWalkingHistory,
                               ),
                             )
                           else if (widget.controller.viewState ==
@@ -105,15 +104,15 @@ class _HistoryPageState extends State<HistoryPage> {
                             AppErrorView(
                               message:
                                   widget.controller.userMessage ??
-                                  'Walking history is temporarily unavailable.',
+                                  context.l10n.walkingHistoryUnavailable,
                               onRetry: widget.controller.retry,
                             )
                           else if (!hasConfirmed)
-                            const AppCard(
+                            AppCard(
                               child: AppEmptyState(
-                                title: 'No confirmed walking history yet',
+                                title: context.l10n.noConfirmedHistory,
                                 message:
-                                    'Start tracking your walks. Confirmed daily progress will appear here.',
+                                    context.l10n.noConfirmedHistoryDescription,
                                 icon: Icons.calendar_month_outlined,
                               ),
                             )
@@ -131,7 +130,7 @@ class _HistoryPageState extends State<HistoryPage> {
                             _StepChart(days: range),
                             const SizedBox(height: AppSpacing.lg),
                             Text(
-                              'Daily confirmed steps',
+                              context.l10n.dailyConfirmedSteps,
                               style: Theme.of(context).textTheme.titleLarge,
                             ),
                             const SizedBox(height: AppSpacing.sm),
@@ -192,10 +191,10 @@ class _Summary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final values = <(String, String)>[
-      ('Total confirmed', formatCampaignNumber(total)),
-      ('Daily average', formatCampaignNumber(average)),
-      ('Goal days', '$goalDays'),
-      ('Active days', '$activeDays'),
+      (context.l10n.totalConfirmed, formatCampaignNumber(total)),
+      (context.l10n.dailyAverageLabel, formatCampaignNumber(average)),
+      (context.l10n.goalDays, '$goalDays'),
+      (context.l10n.activeDays, '$activeDays'),
     ];
     return AppCard(
       child: LayoutBuilder(
@@ -244,10 +243,10 @@ class _StepChart extends StatelessWidget {
       child: Semantics(
         container: true,
         explicitChildNodes: true,
-        label:
-            'Confirmed steps chart for ${days.length} days. '
-            '${formatCampaignNumber(total)} total confirmed steps. '
-            'The daily history list below provides complete details.',
+        label: context.l10n.confirmedStepsChartSemantics(
+          days.length,
+          formatCampaignNumber(total),
+        ),
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: SizedBox(
@@ -257,8 +256,10 @@ class _StepChart extends StatelessWidget {
               children: <Widget>[
                 for (final item in days)
                   Semantics(
-                    label:
-                        '${_friendlyDate(item.date)}, ${item.record?.confirmedSteps ?? 0} confirmed steps',
+                    label: context.l10n.dayConfirmedStepsSemantics(
+                      _friendlyDate(context.l10n.localeName, item.date),
+                      item.record?.confirmedSteps ?? 0,
+                    ),
                     child: Container(
                       width: days.length == 7 ? 48 : 34,
                       decoration: DateUtils.isSameDay(item.date, DateTime.now())
@@ -315,7 +316,7 @@ class _StepChart extends StatelessWidget {
                           const SizedBox(height: AppSpacing.xs),
                           Text(
                             DateUtils.isSameDay(item.date, DateTime.now())
-                                ? 'Today'
+                                ? context.l10n.today
                                 : '${item.date.day}',
                             style: Theme.of(context).textTheme.labelSmall
                                 ?.copyWith(
@@ -362,18 +363,20 @@ class _DayCard extends StatelessWidget {
             children: <Widget>[
               Expanded(
                 child: Text(
-                  today ? 'Today' : _friendlyDate(date),
+                  today
+                      ? context.l10n.today
+                      : _friendlyDate(context.l10n.localeName, date),
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
               AppStatusChip(
                 label: today
-                    ? 'Today'
+                    ? context.l10n.today
                     : record == null
-                    ? 'No record'
+                    ? context.l10n.noRecord
                     : record!.goalReached
-                    ? 'Goal reached'
-                    : 'Completed day',
+                    ? context.l10n.goalReached
+                    : context.l10n.completedDay,
                 status: record?.goalReached == true
                     ? AppStatus.success
                     : AppStatus.neutral,
@@ -382,49 +385,24 @@ class _DayCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            '${formatCampaignNumber(steps)} confirmed steps',
+            context.l10n.confirmedStepCount(formatCampaignNumber(steps)),
             style: Theme.of(context).textTheme.titleLarge,
           ),
           if (goal != null) ...<Widget>[
-            Text('Goal: ${formatCampaignNumber(goal)}'),
-            Text('$percentage%'),
+            Text(context.l10n.goalValue(formatCampaignNumber(goal))),
+            Text(context.l10n.percentageValue(percentage)),
             const SizedBox(height: AppSpacing.sm),
             LinearProgressIndicator(
               value: (steps / goal).clamp(0, 1),
               minHeight: 7,
             ),
           ] else
-            const Text('No local record for this date.'),
+            Text(context.l10n.noRecordForDate),
         ],
       ),
     );
   }
 }
 
-String _friendlyDate(DateTime value) {
-  const weekdays = <String>[
-    'Monday',
-    'Tuesday',
-    'Wednesday',
-    'Thursday',
-    'Friday',
-    'Saturday',
-    'Sunday',
-  ];
-  const months = <String>[
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-  return '${weekdays[value.weekday - 1]}, '
-      '${months[value.month - 1]} ${value.day}';
-}
+String _friendlyDate(String localeName, DateTime value) =>
+    DateFormat('EEEE، d MMMM', localeName).format(value);

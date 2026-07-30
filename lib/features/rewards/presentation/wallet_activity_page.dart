@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:walkingapp/l10n/app_localizations_extension.dart';
 
 import '../../../core/design_system/components/app_card.dart';
 import '../../../core/design_system/components/app_feedback.dart';
@@ -14,7 +15,7 @@ class WalletActivityPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Wallet Activity')),
+      appBar: AppBar(title: Text(context.l10n.walletActivity)),
       body: AnimatedBuilder(
         animation: controller,
         builder: (context, child) {
@@ -24,8 +25,7 @@ class WalletActivityPage extends StatelessWidget {
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 child: AppErrorView(
                   message:
-                      controller.userMessage ??
-                      'Wallet activity could not be loaded.',
+                      controller.userMessage ?? 'فعالیت کیف پول بارگیری نشد.',
                   onRetry: controller.initialize,
                 ),
               ),
@@ -34,11 +34,10 @@ class WalletActivityPage extends StatelessWidget {
           final items = controller.transactions.toList()
             ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
           return items.isEmpty
-              ? const Center(
+              ? Center(
                   child: AppEmptyState(
-                    title: 'No point activity yet',
-                    message:
-                        'Point credits and reward redemptions will appear here.',
+                    title: context.l10n.noPointTransactions,
+                    message: context.l10n.walletEmptyDescription,
                     icon: Icons.receipt_long_outlined,
                   ),
                 )
@@ -66,7 +65,7 @@ class WalletActivityPage extends StatelessWidget {
                                   style: Theme.of(context).textTheme.titleSmall,
                                 ),
                                 const SizedBox(height: AppSpacing.xs),
-                                Text(rewardDate(item.createdAt)),
+                                Text(rewardDate(context.l10n, item.createdAt)),
                               ],
                             ),
                           ),

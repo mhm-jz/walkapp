@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:walkingapp/l10n/app_localizations_extension.dart';
 
 import '../../../../core/design_system/components/app_button.dart';
 import '../../../../core/design_system/components/app_feedback.dart';
@@ -63,7 +64,7 @@ class _DailyGoalSheetState extends State<DailyGoalSheet> {
         parsed < DailyGoalSheet.minimumGoal ||
         parsed > DailyGoalSheet.maximumGoal) {
       setState(() {
-        _errorText = 'Enter a goal from 1,000 to 100,000 steps';
+        _errorText = context.l10n.goalRangeError;
       });
       return;
     }
@@ -78,12 +79,12 @@ class _DailyGoalSheetState extends State<DailyGoalSheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            'Daily step goal',
+            context.l10n.dailyStepGoal,
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Choose a goal that feels achievable for your routine.',
+            context.l10n.goalSheetDescription,
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: AppSpacing.xl),
@@ -92,7 +93,7 @@ class _DailyGoalSheetState extends State<DailyGoalSheet> {
             children: <Widget>[
               AppIconButton(
                 icon: Icons.remove,
-                tooltip: 'Decrease goal by 1,000',
+                tooltip: context.l10n.decreaseGoal,
                 onPressed: () =>
                     _setGoal(_parsedGoal - DailyGoalSheet.goalIncrement),
               ),
@@ -100,7 +101,7 @@ class _DailyGoalSheetState extends State<DailyGoalSheet> {
               Expanded(
                 child: AppTextField(
                   controller: _controller,
-                  label: 'Goal in steps',
+                  label: context.l10n.goalInSteps,
                   errorText: _errorText,
                   keyboardType: TextInputType.number,
                   textInputAction: TextInputAction.done,
@@ -116,14 +117,17 @@ class _DailyGoalSheetState extends State<DailyGoalSheet> {
               const SizedBox(width: AppSpacing.sm),
               AppIconButton(
                 icon: Icons.add,
-                tooltip: 'Increase goal by 1,000',
+                tooltip: context.l10n.increaseGoal,
                 onPressed: () =>
                     _setGoal(_parsedGoal + DailyGoalSheet.goalIncrement),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
-          Text('Quick options', style: Theme.of(context).textTheme.titleSmall),
+          Text(
+            context.l10n.quickOptions,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
           const SizedBox(height: AppSpacing.sm),
           Wrap(
             spacing: AppSpacing.sm,
@@ -146,13 +150,13 @@ class _DailyGoalSheetState extends State<DailyGoalSheet> {
                   constraints.maxWidth < 360 ||
                   MediaQuery.textScalerOf(context).scale(1) > 1.3;
               final cancel = AppButton(
-                label: 'Cancel',
+                label: context.l10n.cancel,
                 expanded: stack,
                 variant: AppButtonVariant.outlined,
                 onPressed: () => Navigator.of(context).pop(),
               );
               final save = AppButton(
-                label: 'Save goal',
+                label: context.l10n.saveGoal,
                 expanded: stack,
                 onPressed: _save,
               );

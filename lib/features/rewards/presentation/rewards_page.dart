@@ -7,6 +7,7 @@ import '../../../core/design_system/components/app_status_chip.dart';
 import '../../../core/design_system/extensions/app_theme_extension.dart';
 import '../../../core/design_system/tokens/app_tokens.dart';
 import '../../../core/preferences/app_settings_controller.dart';
+import '../../../l10n/app_localizations_extension.dart';
 import '../../campaigns/domain/campaign.dart';
 import '../../campaigns/domain/campaign_enrollment.dart';
 import '../application/rewards_controller.dart';
@@ -32,14 +33,14 @@ class RewardsPage extends StatefulWidget {
 }
 
 class _RewardsPageState extends State<RewardsPage> {
-  String _filter = 'All';
+  String _filter = 'all';
 
   List<Reward> _filteredRewards() {
     final balance = widget.controller.wallet.balance;
     final interests = widget.settingsController?.rewardInterests ?? const [];
     final ordered = widget.controller.catalog.indexed.toList()
       ..sort((a, b) {
-        if (interests.isEmpty || interests.contains('No preference')) {
+        if (interests.isEmpty || interests.contains('بدون ترجیح')) {
           return a.$1.compareTo(b.$1);
         }
         final aMatches = interests.contains(a.$2.category);
@@ -50,8 +51,8 @@ class _RewardsPageState extends State<RewardsPage> {
     return ordered
         .map((item) => item.$2)
         .where((reward) {
-          if (_filter == 'All') return true;
-          if (_filter == 'Affordable') {
+          if (_filter == 'all') return true;
+          if (_filter == 'affordable') {
             return reward.isAvailable && reward.requiredPoints <= balance;
           }
           return reward.category == _filter;
@@ -74,7 +75,7 @@ class _RewardsPageState extends State<RewardsPage> {
     if ((result == RewardActionResult.success ||
             result == RewardActionResult.alreadyClaimed) &&
         claim != null) {
-      AppSnackbar.show(context, 'Campaign reward claimed');
+      AppSnackbar.show(context, context.l10n.campaignRewardClaimed);
       _open(
         CouponDetailsPage(
           claimedRewardId: claim.id,
@@ -85,7 +86,7 @@ class _RewardsPageState extends State<RewardsPage> {
     }
     AppSnackbar.show(
       context,
-      widget.controller.userMessage ?? 'The reward could not be claimed.',
+      widget.controller.userMessage ?? context.l10n.rewardClaimError,
       isError: true,
     );
   }
@@ -98,15 +99,15 @@ class _RewardsPageState extends State<RewardsPage> {
         animation: widget.controller,
         builder: (context, child) {
           if (widget.controller.viewState == RewardsViewState.loading) {
-            return const Center(
-              child: AppLoadingIndicator(label: 'Loading rewards'),
+            return Center(
+              child: AppLoadingIndicator(label: context.l10n.loadingRewards),
             );
           }
           if (widget.controller.viewState == RewardsViewState.error) {
             return AppErrorView(
               message:
                   widget.controller.userMessage ??
-                  'Rewards could not be loaded.',
+                  context.l10n.rewardsLoadError,
               onRetry: widget.controller.initialize,
             );
           }
@@ -121,7 +122,7 @@ class _RewardsPageState extends State<RewardsPage> {
           return CustomScrollView(
             slivers: <Widget>[
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(
+                padding: const EdgeInsetsDirectional.fromSTEB(
                   AppSpacing.lg,
                   AppSpacing.xl,
                   AppSpacing.lg,
@@ -137,22 +138,22 @@ class _RewardsPageState extends State<RewardsPage> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: <Widget>[
                           Text(
-                            'Rewards',
+                            context.l10n.rewards,
                             style: Theme.of(context).textTheme.headlineMedium,
                           ),
                           const SizedBox(height: AppSpacing.xs),
                           Text(
-                            'Turn eligible activity and completed campaigns into useful offers.',
+                            context.l10n.rewardsDescription,
                             style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(
                                   color: context.appTheme.textSecondary,
                                 ),
                           ),
                           const SizedBox(height: AppSpacing.sm),
-                          const Align(
-                            alignment: Alignment.centerLeft,
+                          Align(
+                            alignment: AlignmentDirectional.centerStart,
                             child: AppStatusChip(
-                              label: 'Local rewards prototype',
+                              label: context.l10n.localRewardsPrototype,
                               status: AppStatus.neutral,
                               icon: Icons.science_outlined,
                             ),
@@ -180,7 +181,7 @@ class _RewardsPageState extends State<RewardsPage> {
                               .isNotEmpty) ...<Widget>[
                             const SizedBox(height: AppSpacing.xl),
                             Text(
-                              'Ready to claim',
+                              context.l10n.readyToClaim,
                               style: Theme.of(context).textTheme.titleLarge,
                             ),
                             const SizedBox(height: AppSpacing.sm),
@@ -211,9 +212,10 @@ class _RewardsPageState extends State<RewardsPage> {
                                       Text(item.campaign.reward.discountLabel),
                                       const SizedBox(height: AppSpacing.md),
                                       Align(
-                                        alignment: Alignment.centerLeft,
+                                        alignment:
+                                            AlignmentDirectional.centerStart,
                                         child: AppButton(
-                                          label: 'Claim Reward',
+                                          label: context.l10n.claimReward,
                                           isLoading: widget.controller.isSaving,
                                           onPressed: () =>
                                               _claimCampaignReward(item),
@@ -227,7 +229,7 @@ class _RewardsPageState extends State<RewardsPage> {
                           if (featured != null) ...<Widget>[
                             const SizedBox(height: AppSpacing.xl),
                             Text(
-                              'Featured reward',
+                              context.l10n.featuredReward,
                               style: Theme.of(context).textTheme.titleLarge,
                             ),
                             const SizedBox(height: AppSpacing.sm),
@@ -250,16 +252,15 @@ class _RewardsPageState extends State<RewardsPage> {
                           ),
                           const SizedBox(height: AppSpacing.xl),
                           Text(
-                            'Reward catalog',
+                            context.l10n.rewardCatalog,
                             style: Theme.of(context).textTheme.titleLarge,
                           ),
                           const SizedBox(height: AppSpacing.sm),
                           if (rewards.isEmpty)
-                            const AppCard(
+                            AppCard(
                               child: AppEmptyState(
-                                title: 'No matching rewards',
-                                message:
-                                    'Try another category or earn more points.',
+                                title: context.l10n.noMatchingRewards,
+                                message: context.l10n.rewardFilterHint,
                                 icon: Icons.filter_alt_off_outlined,
                               ),
                             )
@@ -313,7 +314,7 @@ class _WalletCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           Text(
-            'Available points',
+            context.l10n.availablePoints,
             style: Theme.of(context).textTheme.titleSmall,
           ),
           Text(
@@ -321,19 +322,21 @@ class _WalletCard extends StatelessWidget {
             style: Theme.of(context).textTheme.displaySmall,
           ),
           const SizedBox(height: AppSpacing.sm),
-          Text('${wallet.totalEarned} earned  •  ${wallet.totalSpent} spent'),
+          Text(
+            context.l10n.walletTotals(wallet.totalEarned, wallet.totalSpent),
+          ),
           const SizedBox(height: AppSpacing.md),
           Wrap(
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.sm,
             children: <Widget>[
               AppButton(
-                label: 'View Wallet Activity',
+                label: context.l10n.viewWalletActivity,
                 icon: Icons.receipt_long_outlined,
                 onPressed: onWallet,
               ),
               AppButton(
-                label: 'My Rewards',
+                label: context.l10n.myRewards,
                 icon: Icons.card_giftcard,
                 variant: AppButtonVariant.outlined,
                 onPressed: onMyRewards,
@@ -362,28 +365,28 @@ class _FeaturedReward extends StatelessWidget {
     final needed = reward.requiredPoints - controller.wallet.balance;
     final (label, supportingMessage, chipStatus) = switch (status) {
       RewardStatus.available => (
-        'Available',
-        'You have enough points to redeem this reward.',
+        context.l10n.availableStatus,
+        context.l10n.enoughPointsMessage,
         AppStatus.success,
       ),
       RewardStatus.insufficientPoints => (
-        'Insufficient points',
-        '${needed.clamp(0, reward.requiredPoints)} more points needed.',
+        context.l10n.insufficientPointsStatus,
+        context.l10n.morePointsNeeded(needed.clamp(0, reward.requiredPoints)),
         AppStatus.warning,
       ),
       RewardStatus.claimed => (
-        'Claimed',
-        'This limited reward has already been claimed.',
+        context.l10n.claimedStatus,
+        context.l10n.limitedRewardClaimed,
         AppStatus.neutral,
       ),
       RewardStatus.unavailable => (
-        'Unavailable',
-        'This reward is not currently available.',
+        context.l10n.unavailableStatus,
+        context.l10n.rewardCurrentlyUnavailable,
         AppStatus.neutral,
       ),
       RewardStatus.expired => (
-        'Expired',
-        'This reward has expired.',
+        context.l10n.expiredStatus,
+        context.l10n.rewardExpiredMessage,
         AppStatus.neutral,
       ),
     };
@@ -396,18 +399,18 @@ class _FeaturedReward extends StatelessWidget {
           Text(reward.title, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: AppSpacing.sm),
           Text(reward.discountLabel),
-          Text('${reward.requiredPoints} points'),
+          Text(context.l10n.pointsRequired(reward.requiredPoints)),
           const SizedBox(height: AppSpacing.sm),
           Align(
-            alignment: Alignment.centerLeft,
+            alignment: AlignmentDirectional.centerStart,
             child: AppStatusChip(label: label, status: chipStatus),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(supportingMessage),
           const SizedBox(height: AppSpacing.md),
           Align(
-            alignment: Alignment.centerLeft,
-            child: AppButton(label: 'View Reward', onPressed: onView),
+            alignment: AlignmentDirectional.centerStart,
+            child: AppButton(label: context.l10n.viewReward, onPressed: onView),
           ),
         ],
       ),
@@ -422,13 +425,13 @@ class _Filters extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const values = <String>[
-      'All',
-      'Clothing',
-      'Sports',
-      'Food',
-      'Wellness',
-      'Affordable',
+    final values = <(String, String)>[
+      ('all', context.l10n.allFilter),
+      ('Clothing', context.l10n.clothingCategory),
+      ('Sports', context.l10n.sportsCategory),
+      ('Food', context.l10n.foodCategory),
+      ('Wellness', context.l10n.wellnessCategory),
+      ('affordable', context.l10n.affordableFilter),
     ];
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -436,9 +439,9 @@ class _Filters extends StatelessWidget {
         children: <Widget>[
           for (final value in values) ...<Widget>[
             FilterChip(
-              label: Text(value),
-              selected: selected == value,
-              onSelected: (_) => onSelected(value),
+              label: Text(value.$2),
+              selected: selected == value.$1,
+              onSelected: (_) => onSelected(value.$1),
             ),
             if (value != values.last) const SizedBox(width: AppSpacing.sm),
           ],
@@ -489,18 +492,19 @@ class _RewardCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
           Text(reward.discountLabel),
-          Text('${reward.requiredPoints} points'),
-          Text(rewardChannelLabel(reward.usageChannel)),
+          Text(context.l10n.pointsRequired(reward.requiredPoints)),
+          Text(rewardChannelLabel(context.l10n, reward.usageChannel)),
           const SizedBox(height: AppSpacing.sm),
           Align(
-            alignment: Alignment.centerLeft,
+            alignment: AlignmentDirectional.centerStart,
             child: AppStatusChip(
               label: switch (status) {
-                RewardStatus.available => 'Available',
-                RewardStatus.insufficientPoints => '$needed more points needed',
-                RewardStatus.claimed => 'Claimed',
-                RewardStatus.expired => 'Expired',
-                RewardStatus.unavailable => 'Currently unavailable',
+                RewardStatus.available => context.l10n.availableStatus,
+                RewardStatus.insufficientPoints =>
+                  context.l10n.morePointsNeeded(needed),
+                RewardStatus.claimed => context.l10n.claimedStatus,
+                RewardStatus.expired => context.l10n.expiredStatus,
+                RewardStatus.unavailable => context.l10n.unavailableStatus,
               },
               status: status == RewardStatus.available
                   ? AppStatus.success
@@ -511,9 +515,9 @@ class _RewardCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
           Align(
-            alignment: Alignment.centerLeft,
+            alignment: AlignmentDirectional.centerStart,
             child: AppButton(
-              label: 'View details',
+              label: context.l10n.viewDetails,
               variant: AppButtonVariant.outlined,
               onPressed: onView,
             ),

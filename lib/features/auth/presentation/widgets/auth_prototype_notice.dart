@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/design_system/components/app_card.dart';
 import '../../../../core/design_system/extensions/app_theme_extension.dart';
 import '../../../../core/design_system/tokens/app_tokens.dart';
+import '../../../../l10n/app_localizations_extension.dart';
 
 class AuthPrototypeNotice extends StatelessWidget {
   const AuthPrototypeNotice({super.key});
@@ -15,12 +16,12 @@ class AuthPrototypeNotice extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            'Local MVP authentication',
+            context.l10n.localMvpAuthentication,
             style: Theme.of(context).textTheme.labelLarge,
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            'Credentials are not sent to or verified by a backend in this prototype.',
+            context.l10n.localMvpAuthenticationDescription,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: context.appTheme.textSecondary,
             ),

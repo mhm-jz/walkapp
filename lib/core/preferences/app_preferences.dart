@@ -18,6 +18,7 @@ final class AppPreferences {
   static const _goalCompletionEnabledKey = 'in_app_goal_completion_enabled';
   static const _campaignUpdatesEnabledKey = 'in_app_campaign_updates_enabled';
   static const _rewardUpdatesEnabledKey = 'in_app_reward_updates_enabled';
+  static const selectedLanguageCodeKey = 'selected_language_code';
   static const defaultDailyGoal = 10000;
 
   final Box<dynamic> _box;
@@ -85,6 +86,11 @@ final class AppPreferences {
       ? _box.get(_rewardUpdatesEnabledKey) as bool
       : true;
 
+  String get selectedLanguageCode {
+    final value = _box.get(selectedLanguageCodeKey)?.toString();
+    return value == 'en' || value == 'fa' ? value! : 'fa';
+  }
+
   Future<void> setThemeMode(ThemeMode value) =>
       _box.put(_themeModeKey, value.name);
 
@@ -123,4 +129,7 @@ final class AppPreferences {
       _box.put(_campaignUpdatesEnabledKey, value);
   Future<void> setInAppRewardUpdatesEnabled(bool value) =>
       _box.put(_rewardUpdatesEnabledKey, value);
+
+  Future<void> setSelectedLanguageCode(String value) =>
+      _box.put(selectedLanguageCodeKey, value == 'en' ? 'en' : 'fa');
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../../../l10n/app_localizations.dart';
 
 enum AuthFormType { login, register }
 
@@ -51,6 +52,7 @@ final class AuthFormController extends ChangeNotifier {
   }
 
   Future<bool> submit({
+    required AppLocalizations l10n,
     required String email,
     required String password,
     String fullName = '',
@@ -59,27 +61,27 @@ final class AuthFormController extends ChangeNotifier {
     if (_isLoading) return false;
     final errors = <String, String>{};
     if (type == AuthFormType.register && fullName.trim().isEmpty) {
-      errors['name'] = 'Enter your full name';
+      errors['name'] = l10n.enterFullName;
     }
     final normalizedEmail = email.trim();
     if (normalizedEmail.isEmpty) {
-      errors['email'] = 'Enter your email address';
+      errors['email'] = l10n.enterEmailAddress;
     } else if (!_looksLikeEmail(normalizedEmail)) {
-      errors['email'] = 'Enter a valid email address';
+      errors['email'] = l10n.enterValidEmailAddress;
     }
     if (password.isEmpty) {
-      errors['password'] = 'Enter your password';
+      errors['password'] = l10n.enterPassword;
     } else if (type == AuthFormType.register && password.length < 8) {
-      errors['password'] = 'Use at least 8 characters';
+      errors['password'] = l10n.useAtLeastEightCharacters;
     }
     if (type == AuthFormType.register) {
       if (confirmation.isEmpty) {
-        errors['confirmation'] = 'Confirm your password';
+        errors['confirmation'] = l10n.confirmPassword;
       } else if (confirmation != password) {
-        errors['confirmation'] = 'Passwords do not match';
+        errors['confirmation'] = l10n.passwordsDoNotMatch;
       }
       if (!_acceptTerms) {
-        errors['terms'] = 'Accept the terms and privacy policy to continue';
+        errors['terms'] = l10n.acceptTermsToContinue;
       }
     }
     _errors = errors;

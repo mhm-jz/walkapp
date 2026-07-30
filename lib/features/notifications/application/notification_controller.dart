@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../../l10n/app_localizations.dart';
 
 import 'package:flutter/foundation.dart';
 
@@ -86,8 +87,9 @@ final class NotificationController extends ChangeNotifier {
       _viewState = _notifications.isEmpty
           ? NotificationViewState.error
           : NotificationViewState.content;
-      _userMessage =
-          'Notifications could not be refreshed. Your other WalkApp data is unaffected.';
+      _userMessage = lookupAppLocalizations(
+        _settingsController.locale,
+      ).notificationsRefreshError;
     }
     _notify();
     if (evaluate) _queueEvaluation();
@@ -107,8 +109,9 @@ final class NotificationController extends ChangeNotifier {
             : NotificationViewState.content;
         _userMessage = null;
       } catch (_) {
-        _userMessage =
-            'Some notification updates are waiting to be saved locally.';
+        _userMessage = lookupAppLocalizations(
+          _settingsController.locale,
+        ).notificationUpdatesPending;
         if (_notifications.isEmpty) _viewState = NotificationViewState.error;
       }
       _notify();
@@ -122,7 +125,9 @@ final class NotificationController extends ChangeNotifier {
     try {
       await _repository.markAsRead(notification.id);
     } catch (_) {
-      _userMessage = 'This notification will be marked read when saving works.';
+      _userMessage = lookupAppLocalizations(
+        _settingsController.locale,
+      ).notificationReadPending;
       _notify();
     }
   }
@@ -135,7 +140,9 @@ final class NotificationController extends ChangeNotifier {
     try {
       await _repository.markAllAsRead();
     } catch (_) {
-      _userMessage = 'Read status could not be saved yet.';
+      _userMessage = lookupAppLocalizations(
+        _settingsController.locale,
+      ).readStatusSaveError;
       _notify();
     }
   }
@@ -152,7 +159,9 @@ final class NotificationController extends ChangeNotifier {
     try {
       return await _repository.deleteReadNotifications();
     } catch (_) {
-      _userMessage = 'Read notifications could not be cleared yet.';
+      _userMessage = lookupAppLocalizations(
+        _settingsController.locale,
+      ).readNotificationsClearError;
       _notify();
       return count;
     }
@@ -164,6 +173,7 @@ final class NotificationController extends ChangeNotifier {
   }
 
   Future<void> _evaluate(DateTime now) async {
+    final l10n = lookupAppLocalizations(_settingsController.locale);
     if (!_settingsController.onboardingCompleted) return;
     final date = _dateKey(now);
     final confirmed = _stepController.snapshot.confirmedSteps;
@@ -175,8 +185,8 @@ final class NotificationController extends ChangeNotifier {
         now: now,
         key: 'daily-goal-completed:$date',
         type: AppNotificationType.dailyGoalCompleted,
-        title: 'Daily goal completed',
-        message: 'You reached your walking goal for today.',
+        title: l10n.dailyGoalCompletedNotification,
+        message: l10n.dailyGoalCompletedMessage,
         destination: AppNotificationDestination.home,
       );
     }
@@ -190,9 +200,8 @@ final class NotificationController extends ChangeNotifier {
         now: now,
         key: 'daily-goal-reminder:$date',
         type: AppNotificationType.dailyGoalReminder,
-        title: 'A few more steps today?',
-        message:
-            'You have ${goal - displayed} steps left to reach your daily goal.',
+        title: l10n.dailyGoalReminderTitle,
+        message: l10n.dailyGoalReminderMessage(goal - displayed),
         destination: AppNotificationDestination.home,
       );
     }
@@ -205,14 +214,21 @@ final class NotificationController extends ChangeNotifier {
             !now.isAfter(campaign.endAt) &&
             campaign.endAt.difference(now) <= const Duration(hours: 24)) {
           final remaining = campaign.type == CampaignType.stepTarget
-              ? '${((campaign.targetSteps ?? 0) - enrollment.totalEligibleSteps).clamp(0, 1 << 31)} campaign steps remaining.'
-              : '${((campaign.requiredGoalDays ?? 0) - _campaignController.completedGoalDays(enrollment)).clamp(0, 366)} more goal day${((campaign.requiredGoalDays ?? 0) - _campaignController.completedGoalDays(enrollment)) == 1 ? '' : 's'} before the deadline.';
+              ? l10n.campaignStepsRemaining(
+                  ((campaign.targetSteps ?? 0) - enrollment.totalEligibleSteps)
+                      .clamp(0, 1 << 31),
+                )
+              : l10n.goalDaysRemaining(
+                  ((campaign.requiredGoalDays ?? 0) -
+                          _campaignController.completedGoalDays(enrollment))
+                      .clamp(0, 366),
+                );
           await _create(
             now: now,
             key: 'campaign-ending:${enrollment.id}:$date',
             type: AppNotificationType.campaignEndingSoon,
-            title: 'Your campaign ends soon',
-            message: 'You need $remaining',
+            title: l10n.campaignEndingSoonNotification,
+            message: remaining,
             destination: AppNotificationDestination.activeCampaign,
             campaignId: campaign.id,
             enrollmentId: enrollment.id,
@@ -223,8 +239,8 @@ final class NotificationController extends ChangeNotifier {
             now: enrollment.completedAt ?? now,
             key: 'campaign-completed:${enrollment.id}',
             type: AppNotificationType.campaignCompleted,
-            title: 'Campaign completed',
-            message: 'You completed ${campaign.title}.',
+            title: l10n.campaignCompleted,
+            message: l10n.campaignCompletedMessage(campaign.title),
             destination: AppNotificationDestination.rewards,
             campaignId: campaign.id,
             enrollmentId: enrollment.id,
@@ -247,8 +263,8 @@ final class NotificationController extends ChangeNotifier {
               now: now,
               key: 'campaign-reward-ready:${enrollment.id}',
               type: AppNotificationType.campaignRewardReady,
-              title: 'Reward ready to claim',
-              message: 'Your ${campaign.reward.title} is ready.',
+              title: l10n.campaignRewardReadyTitle,
+              message: l10n.campaignRewardReadyMessage(campaign.reward.title),
               destination: AppNotificationDestination.rewards,
               campaignId: campaign.id,
               enrollmentId: enrollment.id,
@@ -266,9 +282,8 @@ final class NotificationController extends ChangeNotifier {
             now: transaction.createdAt,
             key: 'campaign-points-earned:${enrollment.id}',
             type: AppNotificationType.campaignPointsEarned,
-            title: 'Points added',
-            message:
-                '${transaction.amount} points were added to your Rewards balance.',
+            title: l10n.pointsAddedTitle,
+            message: l10n.pointsAddedMessage(transaction.amount),
             destination: AppNotificationDestination.rewards,
             campaignId: campaign.id,
             enrollmentId: enrollment.id,
@@ -284,9 +299,11 @@ final class NotificationController extends ChangeNotifier {
             now: now,
             key: 'coupon-expiring:${claim.id}',
             type: AppNotificationType.couponExpiringSoon,
-            title: 'Your reward expires soon',
-            message:
-                'Use ${claim.rewardTitle} before ${_friendlyDate(claim.expiresAt)}.',
+            title: l10n.rewardExpiringSoonTitle,
+            message: l10n.rewardExpiringSoonMessage(
+              claim.rewardTitle,
+              _friendlyDate(claim.expiresAt),
+            ),
             destination: AppNotificationDestination.couponDetails,
             rewardId: claim.rewardId,
             claimedRewardId: claim.id,

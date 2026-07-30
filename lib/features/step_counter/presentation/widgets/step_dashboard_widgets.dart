@@ -8,6 +8,8 @@ import '../../../../core/design_system/components/app_status_chip.dart';
 import '../../../../core/design_system/extensions/app_theme_extension.dart';
 import '../../../../core/design_system/tokens/app_tokens.dart';
 import '../../domain/tracking_activity.dart';
+import '../tracking_activity_localization.dart';
+import '../../../../l10n/app_localizations_extension.dart';
 
 class StepDashboardHeader extends StatelessWidget {
   const StepDashboardHeader({
@@ -35,21 +37,21 @@ class StepDashboardHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Text(
-                'Daily Steps',
+                context.l10n.todaySteps,
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                isTracking
-                    ? 'Keep going, you’re doing great!'
-                    : 'Start tracking when you’re ready to move.',
+                isTracking ? context.l10n.keepGoing : context.l10n.readyToMove,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: context.appTheme.textSecondary,
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),
               AppStatusChip(
-                label: isTracking ? 'Tracking active' : 'Tracking stopped',
+                label: isTracking
+                    ? context.l10n.trackingActive
+                    : context.l10n.trackingStopped,
                 status: isTracking ? AppStatus.success : AppStatus.neutral,
                 icon: isTracking ? Icons.sensors : Icons.pause_rounded,
               ),
@@ -58,36 +60,36 @@ class StepDashboardHeader extends StatelessWidget {
         ),
         const SizedBox(width: AppSpacing.sm),
         PopupMenuButton<ThemeMode>(
-          tooltip: 'Choose theme',
+          tooltip: context.l10n.chooseTheme,
           icon: Icon(_themeIcon(themeMode)),
           onSelected: onThemeChanged,
-          itemBuilder: (context) => const <PopupMenuEntry<ThemeMode>>[
+          itemBuilder: (context) => <PopupMenuEntry<ThemeMode>>[
             PopupMenuItem(
               value: ThemeMode.system,
               child: ListTile(
                 leading: Icon(Icons.brightness_auto),
-                title: Text('System'),
+                title: Text(context.l10n.systemTheme),
               ),
             ),
             PopupMenuItem(
               value: ThemeMode.light,
               child: ListTile(
                 leading: Icon(Icons.light_mode_outlined),
-                title: Text('Light'),
+                title: Text(context.l10n.lightTheme),
               ),
             ),
             PopupMenuItem(
               value: ThemeMode.dark,
               child: ListTile(
                 leading: Icon(Icons.dark_mode_outlined),
-                title: Text('Dark'),
+                title: Text(context.l10n.darkTheme),
               ),
             ),
           ],
         ),
         if (onOpenAccount != null)
           IconButton(
-            tooltip: 'Open account menu',
+            tooltip: context.l10n.openAccountMenu,
             onPressed: onOpenAccount,
             icon: CircleAvatar(
               radius: 16,
@@ -155,12 +157,12 @@ class StepProgressCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      'Today’s progress',
+                      context.l10n.todayProgress,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      'Daily goal: $goal steps',
+                      context.l10n.dailyGoalWithSteps(goal),
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: context.appTheme.textSecondary,
                       ),
@@ -170,7 +172,7 @@ class StepProgressCard extends StatelessWidget {
               ),
               AppIconButton(
                 onPressed: onEditGoal,
-                tooltip: 'Edit daily goal',
+                tooltip: context.l10n.editDailyGoal,
                 icon: Icons.edit_outlined,
               ),
             ],
@@ -181,8 +183,12 @@ class StepProgressCard extends StatelessWidget {
             duration: AppDurations.slow,
             curve: Curves.easeOutCubic,
             builder: (context, animatedProgress, child) => Semantics(
-              label: 'Daily step progress',
-              value: '$steps of $goal steps, $percentage percent',
+              label: context.l10n.dailyStepProgress,
+              value: context.l10n.dailyStepProgressValue(
+                steps,
+                goal,
+                percentage,
+              ),
               child: SizedBox.square(
                 dimension: AppSizes.progressDiameter - AppSpacing.lg,
                 child: Stack(
@@ -222,7 +228,7 @@ class StepProgressCard extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              'Steps',
+                              'قدم',
                               style: Theme.of(context).textTheme.bodyLarge
                                   ?.copyWith(
                                     color: context.appTheme.textSecondary,
@@ -244,12 +250,12 @@ class StepProgressCard extends StatelessWidget {
             runSpacing: AppSpacing.sm,
             children: <Widget>[
               AppStatusChip(
-                label: '$percentage% complete',
+                label: context.l10n.percentageComplete(percentage),
                 status: AppStatus.success,
                 icon: Icons.trending_up_rounded,
               ),
               AppStatusChip(
-                label: 'Goal $goal',
+                label: context.l10n.goalNumber(goal),
                 status: AppStatus.neutral,
                 icon: Icons.flag_outlined,
               ),
@@ -280,19 +286,19 @@ class StepStatsSection extends StatelessWidget {
     final remainingSteps = math.max(goal - displayedSteps, 0);
     final items = <_StatData>[
       _StatData(
-        label: 'Confirmed',
+        label: context.l10n.confirmedSteps,
         value: confirmedSteps,
         icon: Icons.check_circle_outline,
         color: context.appTheme.success,
       ),
       _StatData(
-        label: 'Validating',
+        label: context.l10n.validating,
         value: validatingSteps,
         icon: Icons.schedule,
         color: context.appTheme.warning,
       ),
       _StatData(
-        label: 'Remaining',
+        label: context.l10n.remaining,
         value: remainingSteps,
         icon: Icons.track_changes,
         color: Theme.of(context).colorScheme.secondary,
@@ -349,7 +355,7 @@ class ActivitySummaryCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            'Current activity',
+            context.l10n.currentActivity,
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: AppSpacing.md),
@@ -379,7 +385,7 @@ class ActivitySummaryCard extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      'Transition-based detection',
+                      context.l10n.transitionBasedDetection,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: context.appTheme.textSecondary,
                       ),
@@ -396,15 +402,17 @@ class ActivitySummaryCard extends StatelessWidget {
             children: <Widget>[
               AppStatusChip(
                 label: sensorReady
-                    ? 'Sensors · Ready'
+                    ? context.l10n.sensorsReady
                     : isTracking
-                    ? 'Sensors · Preparing'
-                    : 'Sensors · Inactive',
+                    ? context.l10n.sensorsPreparing
+                    : context.l10n.sensorsInactive,
                 status: sensorReady ? AppStatus.success : AppStatus.neutral,
                 icon: Icons.sensors,
               ),
               AppStatusChip(
-                label: isTracking ? 'Tracking · Active' : 'Tracking · Stopped',
+                label: isTracking
+                    ? context.l10n.trackingActiveCompact
+                    : context.l10n.trackingStoppedCompact,
                 status: isTracking ? AppStatus.success : AppStatus.neutral,
                 icon: isTracking
                     ? Icons.location_searching
@@ -412,8 +420,8 @@ class ActivitySummaryCard extends StatelessWidget {
               ),
               AppStatusChip(
                 label: provisionalSteps > 0
-                    ? 'Validation · Validating'
-                    : 'Validation · Idle',
+                    ? context.l10n.validationValidating
+                    : context.l10n.validationIdle,
                 status: provisionalSteps > 0
                     ? AppStatus.warning
                     : AppStatus.neutral,
@@ -431,34 +439,35 @@ class ActivitySummaryCard extends StatelessWidget {
     TrackingActivity value,
   ) {
     final scheme = Theme.of(context).colorScheme;
+    final label = value.localizedLabel(AppLocalizations.of(context));
     return switch (value) {
       TrackingActivity.walking => _ActivityPresentation(
-        label: 'Walking',
+        label: label,
         icon: Icons.directions_walk,
         color: context.appTheme.success,
       ),
       TrackingActivity.running => _ActivityPresentation(
-        label: 'Running',
+        label: label,
         icon: Icons.directions_run,
         color: scheme.secondary,
       ),
       TrackingActivity.still => _ActivityPresentation(
-        label: 'Still',
+        label: label,
         icon: Icons.pause_circle_outline,
         color: scheme.onSurfaceVariant,
       ),
       TrackingActivity.inVehicle => _ActivityPresentation(
-        label: 'In vehicle',
+        label: label,
         icon: Icons.directions_car,
         color: context.appTheme.warning,
       ),
       TrackingActivity.onBicycle => _ActivityPresentation(
-        label: 'Cycling',
+        label: label,
         icon: Icons.directions_bike,
         color: scheme.secondary,
       ),
       TrackingActivity.unknown => _ActivityPresentation(
-        label: 'Detecting activity',
+        label: label,
         icon: Icons.help_outline,
         color: scheme.onSurfaceVariant,
       ),
@@ -483,7 +492,7 @@ class TrackingActionArea extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppButton(
-      label: isTracking ? 'Stop Tracking' : 'Start Walking',
+      label: isTracking ? context.l10n.stopTracking : context.l10n.startWalking,
       icon: isTracking ? Icons.stop_rounded : Icons.directions_walk_rounded,
       variant: isTracking
           ? AppButtonVariant.destructive

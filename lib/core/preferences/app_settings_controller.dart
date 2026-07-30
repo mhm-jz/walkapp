@@ -12,6 +12,7 @@ final class AppSettingsController extends ChangeNotifier {
       _onboardingCompleted = preferences.onboardingCompleted,
       _rewardInterests = preferences.rewardInterests,
       _selectedCity = preferences.selectedCity,
+      _locale = Locale(preferences.selectedLanguageCode),
       _inAppDailyGoalReminderEnabled =
           preferences.inAppDailyGoalReminderEnabled,
       _inAppDailyGoalReminderTime = preferences.inAppDailyGoalReminderTime,
@@ -28,6 +29,7 @@ final class AppSettingsController extends ChangeNotifier {
       _onboardingCompleted = false,
       _rewardInterests = const <String>[],
       _selectedCity = 'Prefer not to say',
+      _locale = const Locale('fa'),
       _inAppDailyGoalReminderEnabled = false,
       _inAppDailyGoalReminderTime = null,
       _inAppGoalCompletionEnabled = true,
@@ -42,6 +44,7 @@ final class AppSettingsController extends ChangeNotifier {
   bool _onboardingCompleted;
   List<String> _rewardInterests;
   String _selectedCity;
+  Locale _locale;
   bool _inAppDailyGoalReminderEnabled;
   int? _inAppDailyGoalReminderTime;
   bool _inAppGoalCompletionEnabled;
@@ -56,6 +59,7 @@ final class AppSettingsController extends ChangeNotifier {
   List<String> get rewardInterests =>
       List<String>.unmodifiable(_rewardInterests);
   String get selectedCity => _selectedCity;
+  Locale get locale => _locale;
   bool get inAppDailyGoalReminderEnabled => _inAppDailyGoalReminderEnabled;
   int? get inAppDailyGoalReminderTime => _inAppDailyGoalReminderTime;
   bool get inAppGoalCompletionEnabled => _inAppGoalCompletionEnabled;
@@ -67,6 +71,14 @@ final class AppSettingsController extends ChangeNotifier {
     _themeMode = value;
     notifyListeners();
     await _preferences?.setThemeMode(value);
+  }
+
+  Future<void> setLocale(Locale value) async {
+    final languageCode = value.languageCode == 'en' ? 'en' : 'fa';
+    if (_locale.languageCode == languageCode) return;
+    _locale = Locale(languageCode);
+    notifyListeners();
+    await _preferences?.setSelectedLanguageCode(languageCode);
   }
 
   Future<void> setDailyGoal(int value) async {
