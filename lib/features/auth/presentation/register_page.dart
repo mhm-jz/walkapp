@@ -23,7 +23,7 @@ class RegisterPage extends StatefulWidget {
   });
 
   final AppSettingsController settingsController;
-  final VoidCallback onAuthenticated;
+  final Future<void> Function() onAuthenticated;
   final VoidCallback onLogin;
   final VoidCallback onBack;
 
@@ -57,7 +57,7 @@ class _RegisterPageState extends State<RegisterPage> {
       password: _passwordController.text,
       confirmation: _confirmationController.text,
     );
-    if (success && mounted) widget.onAuthenticated();
+    if (success && mounted) await widget.onAuthenticated();
   }
 
   @override

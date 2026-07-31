@@ -141,17 +141,25 @@ class _WalkingAppState extends State<WalkingApp> {
     );
   }
 
-  void _logout() {
+  Future<void> _logout() async {
+    await _settingsController.setAuthenticated(false);
+    if (!mounted) return;
     _navigatorKey.currentState?.pushAndRemoveUntil(
       _routeTo(_loginPage()),
       (route) => false,
     );
   }
 
+  Future<void> _completeAuthentication() async {
+    await _settingsController.setAuthenticated(true);
+    if (!mounted) return;
+    _openAppShell();
+  }
+
   RegisterPage _registerPage() {
     return RegisterPage(
       settingsController: _settingsController,
-      onAuthenticated: _openAppShell,
+      onAuthenticated: _completeAuthentication,
       onLogin: _replaceWithLogin,
       onBack: () => _navigatorKey.currentState?.pop(),
     );
@@ -160,7 +168,7 @@ class _WalkingAppState extends State<WalkingApp> {
   LoginPage _loginPage() {
     return LoginPage(
       settingsController: _settingsController,
-      onAuthenticated: _openAppShell,
+      onAuthenticated: _completeAuthentication,
       onRegister: _replaceWithRegister,
       onBack: () => _navigatorKey.currentState?.pop(),
     );
@@ -202,7 +210,18 @@ class _WalkingAppState extends State<WalkingApp> {
         themeMode: _settingsController.themeMode,
         themeAnimationDuration: const Duration(milliseconds: 350),
         home: _settingsController.onboardingCompleted
-            ? _loginPage()
+            ? _settingsController.isAuthenticated
+                  ? AppShellPage(
+                      stepController: widget.controller,
+                      settingsController: _settingsController,
+                      enrollmentRepository: _campaignEnrollmentRepository,
+                      rewardWalletRepository: _rewardWalletRepository,
+                      claimedRewardRepository: _claimedRewardRepository,
+                      dailyStepHistoryRepository: _dailyStepHistoryRepository,
+                      notificationRepository: _notificationRepository,
+                      onLogout: _logout,
+                    )
+                  : _loginPage()
             : OnboardingPage(
                 settingsController: _settingsController,
                 stepController: widget.controller,

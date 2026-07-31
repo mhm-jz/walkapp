@@ -10,6 +10,7 @@ final class AppSettingsController extends ChangeNotifier {
       _profileName = preferences.profileName,
       _profileEmail = preferences.profileEmail,
       _onboardingCompleted = preferences.onboardingCompleted,
+      _isAuthenticated = preferences.isAuthenticated,
       _rewardInterests = preferences.rewardInterests,
       _selectedCity = preferences.selectedCity,
       _locale = Locale(preferences.selectedLanguageCode),
@@ -27,6 +28,7 @@ final class AppSettingsController extends ChangeNotifier {
       _profileName = '',
       _profileEmail = '',
       _onboardingCompleted = false,
+      _isAuthenticated = false,
       _rewardInterests = const <String>[],
       _selectedCity = 'Prefer not to say',
       _locale = const Locale('fa'),
@@ -42,6 +44,7 @@ final class AppSettingsController extends ChangeNotifier {
   String _profileName;
   String _profileEmail;
   bool _onboardingCompleted;
+  bool _isAuthenticated;
   List<String> _rewardInterests;
   String _selectedCity;
   Locale _locale;
@@ -56,6 +59,7 @@ final class AppSettingsController extends ChangeNotifier {
   String get profileName => _profileName;
   String get profileEmail => _profileEmail;
   bool get onboardingCompleted => _onboardingCompleted;
+  bool get isAuthenticated => _isAuthenticated;
   List<String> get rewardInterests =>
       List<String>.unmodifiable(_rewardInterests);
   String get selectedCity => _selectedCity;
@@ -132,6 +136,13 @@ final class AppSettingsController extends ChangeNotifier {
     if (_onboardingCompleted) return;
     await _preferences?.setOnboardingCompleted(true);
     _onboardingCompleted = true;
+    notifyListeners();
+  }
+
+  Future<void> setAuthenticated(bool value) async {
+    if (_isAuthenticated == value) return;
+    await _preferences?.setAuthenticated(value);
+    _isAuthenticated = value;
     notifyListeners();
   }
 

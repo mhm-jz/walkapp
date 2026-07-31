@@ -11,6 +11,7 @@ final class AppPreferences {
   static const _profileNameKey = 'profile_name';
   static const _profileEmailKey = 'profile_email';
   static const _onboardingCompletedKey = 'onboarding_completed';
+  static const _authenticatedKey = 'authenticated';
   static const _rewardInterestsKey = 'reward_interests';
   static const _selectedCityKey = 'selected_city';
   static const _dailyReminderEnabledKey = 'in_app_daily_reminder_enabled';
@@ -55,6 +56,8 @@ final class AppPreferences {
         _box.containsKey(_profileNameKey) ||
         _box.containsKey(_profileEmailKey);
   }
+
+  bool get isAuthenticated => _box.get(_authenticatedKey) == true;
 
   List<String> get rewardInterests {
     final raw = _box.get(_rewardInterestsKey);
@@ -114,6 +117,9 @@ final class AppPreferences {
 
   Future<void> setOnboardingCompleted(bool value) =>
       _box.put(_onboardingCompletedKey, value);
+
+  Future<void> setAuthenticated(bool value) =>
+      _box.put(_authenticatedKey, value);
 
   Future<void> setInAppDailyGoalReminder({
     required bool enabled,

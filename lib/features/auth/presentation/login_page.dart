@@ -22,7 +22,7 @@ class LoginPage extends StatefulWidget {
   });
 
   final AppSettingsController settingsController;
-  final VoidCallback onAuthenticated;
+  final Future<void> Function() onAuthenticated;
   final VoidCallback onRegister;
   final VoidCallback onBack;
 
@@ -50,7 +50,7 @@ class _LoginPageState extends State<LoginPage> {
       email: _emailController.text,
       password: _passwordController.text,
     );
-    if (success && mounted) widget.onAuthenticated();
+    if (success && mounted) await widget.onAuthenticated();
   }
 
   @override
