@@ -2372,4 +2372,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get prototypeRewardTerms => 'شرایط پاداش نمونه اعمال می‌شود.';
+
+  @override
+  String get transitionBasedDetection => 'تشخیص مبتنی بر تغییر فعالیت';
 }

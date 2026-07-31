@@ -7,6 +7,7 @@ import '../../../../core/design_system/components/app_card.dart';
 import '../../../../core/design_system/components/app_status_chip.dart';
 import '../../../../core/design_system/extensions/app_theme_extension.dart';
 import '../../../../core/design_system/tokens/app_tokens.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../domain/tracking_activity.dart';
 import '../tracking_activity_localization.dart';
 import '../../../../l10n/app_localizations_extension.dart';

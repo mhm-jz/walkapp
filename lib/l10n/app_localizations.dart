@@ -3774,6 +3774,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Prototype reward terms apply.'**
   String get prototypeRewardTerms;
+
+  /// No description provided for @transitionBasedDetection.
+  ///
+  /// In en, this message translates to:
+  /// **'Transition-based detection'**
+  String get transitionBasedDetection;
 }
 
 class _AppLocalizationsDelegate

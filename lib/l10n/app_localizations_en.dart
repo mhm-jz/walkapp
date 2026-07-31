@@ -2463,4 +2463,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get prototypeRewardTerms => 'Prototype reward terms apply.';
+
+  @override
+  String get transitionBasedDetection => 'Transition-based detection';
 }
