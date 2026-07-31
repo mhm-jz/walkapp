@@ -18,6 +18,9 @@ final class NativeActivityTransitionEvent {
     required this.transitionType,
     required this.eventElapsedRealtimeNanos,
     required this.receivedElapsedRealtimeNanos,
+    required this.receiverEnteredElapsedRealtimeNanos,
+    this.transitionResultParsedElapsedRealtimeNanos,
+    this.transitionQueuedElapsedRealtimeNanos,
   });
 
   factory NativeActivityTransitionEvent.fromMap(Map<Object?, Object?> map) {
@@ -30,6 +33,13 @@ final class NativeActivityTransitionEvent {
           (map['eventElapsedRealtimeNanos'] as num).toInt(),
       receivedElapsedRealtimeNanos:
           (map['receivedElapsedRealtimeNanos'] as num).toInt(),
+      receiverEnteredElapsedRealtimeNanos:
+          (map['receiverEnteredElapsedRealtimeNanos'] as num?)?.toInt() ??
+          (map['receivedElapsedRealtimeNanos'] as num).toInt(),
+      transitionResultParsedElapsedRealtimeNanos:
+          (map['transitionResultParsedElapsedRealtimeNanos'] as num?)?.toInt(),
+      transitionQueuedElapsedRealtimeNanos:
+          (map['transitionQueuedElapsedRealtimeNanos'] as num?)?.toInt(),
     );
   }
 
@@ -39,6 +49,9 @@ final class NativeActivityTransitionEvent {
   final String transitionType;
   final int eventElapsedRealtimeNanos;
   final int receivedElapsedRealtimeNanos;
+  final int receiverEnteredElapsedRealtimeNanos;
+  final int? transitionResultParsedElapsedRealtimeNanos;
+  final int? transitionQueuedElapsedRealtimeNanos;
 }
 
 final class ActivityTransitionBridge {
@@ -53,12 +66,21 @@ final class ActivityTransitionBridge {
         'denied';
   }
 
+  static Future<int?> elapsedRealtimeNanos() async =>
+      await _channel.invokeMethod<int>('elapsedRealtimeNanos');
+
   static Future<ActivityTransitionRegistration> register({
     required String sessionId,
+    String? diagnosticSessionId,
+    String? diagnosticDirectoryPath,
   }) async {
     final result = await _channel.invokeMapMethod<Object?, Object?>(
       'register',
-      <String, Object?>{'sessionId': sessionId},
+      <String, Object?>{
+        'sessionId': sessionId,
+        'diagnosticSessionId': diagnosticSessionId,
+        'diagnosticDirectoryPath': diagnosticDirectoryPath,
+      },
     );
     if (result == null) {
       throw StateError('Activity Transition registration returned no result.');
@@ -110,4 +132,26 @@ final class ActivityTransitionBridge {
       <String, Object?>{'sessionId': sessionId},
     );
   }
+
+  static Future<List<String>> peekReceiverDiagnostics({
+    required String diagnosticSessionId,
+  }) async =>
+      await _channel.invokeListMethod<String>(
+        'peekReceiverDiagnostics',
+        <String, Object?>{'diagnosticSessionId': diagnosticSessionId},
+      ) ??
+      const <String>[];
+
+  static Future<bool> acknowledgeReceiverDiagnostics({
+    required String diagnosticSessionId,
+    required Iterable<String> diagnosticIds,
+  }) async =>
+      await _channel.invokeMethod<bool>(
+        'acknowledgeReceiverDiagnostics',
+        <String, Object?>{
+          'diagnosticSessionId': diagnosticSessionId,
+          'diagnosticIds': diagnosticIds.toList(growable: false),
+        },
+      ) ??
+      false;
 }

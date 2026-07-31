@@ -906,5 +906,21 @@
   "campaignCompletedTransaction": "{campaign} completed",
   "@campaignCompletedTransaction": {"placeholders": {"campaign": {"type": "String"}}},
   "prototypeRewardTerms": "Prototype reward terms apply.",
-  "transitionBasedDetection": "Transition-based detection"
+  "transitionBasedDetection": "Transition-based detection",
+  "diagnosticReports": "Diagnostic reports",
+  "diagnosticReportsDescription": "Review and export controlled step-tracking sessions.",
+  "diagnosticNoReports": "No diagnostic reports are available.",
+  "diagnosticTestMetadata": "Test session details",
+  "diagnosticTestName": "Test name",
+  "diagnosticManualSteps": "Manually counted steps",
+  "diagnosticRouteDescription": "Route description",
+  "diagnosticNotes": "Test notes",
+  "diagnosticEditMetadata": "Add or edit test details",
+  "diagnosticExportReport": "Export report",
+  "diagnosticDeleteSession": "Delete diagnostic session",
+  "diagnosticClearReports": "Clear reports",
+  "diagnosticSessionSummary": "{mode} · {candidates} candidates · {accepted} accepted · {rejected} rejected",
+  "@diagnosticSessionSummary": {"placeholders": {"mode": {"type": "String"}, "candidates": {"type": "int"}, "accepted": {"type": "int"}, "rejected": {"type": "int"}}},
+  "diagnosticSessionDetails": "{mode} · {durationSeconds}s · {candidates} raw · {accepted} accepted · {rejected} rejected · +{confirmedGained} confirmed · manual {manualSteps}",
+  "@diagnosticSessionDetails": {"placeholders": {"mode": {"type": "String"}, "durationSeconds": {"type": "int"}, "candidates": {"type": "int"}, "accepted": {"type": "int"}, "rejected": {"type": "int"}, "confirmedGained": {"type": "int"}, "manualSteps": {"type": "String"}}}
 }

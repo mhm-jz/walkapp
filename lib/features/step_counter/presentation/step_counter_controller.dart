@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../../../core/diagnostics/step_diagnostic_event.dart';
 import '../data/step_snapshot.dart';
 import '../domain/step_snapshot_store.dart';
 import '../domain/step_tracking_service.dart';
@@ -62,6 +63,22 @@ final class StepCounterController extends ChangeNotifier {
     _uiError = null;
 
     try {
+      final diagnostics = trackingService;
+      if (diagnostics is StepDiagnosticRecorder) {
+        await (diagnostics as StepDiagnosticRecorder)
+            .prepareDiagnosticSession(<String, Object?>{
+              'confirmedStepsBeforeStart': _snapshot.confirmedSteps,
+              'provisionalStepsBeforeStart': _snapshot.provisionalSteps,
+              'displayedStepsBeforeStart': _snapshot.displayedSteps,
+              'persistedConfirmedValue': _snapshot.confirmedSteps,
+              'persistedTrackingState': _snapshot.isTracking,
+              'pedometerBaselineValue': null,
+              'serviceRunningState': await trackingService.isRunning(),
+              'currentValidationState': _snapshot.provisionalSteps > 0
+                  ? 'validating'
+                  : 'idle',
+            });
+      }
       await trackingService.start();
 
       _snapshot = _snapshot.copyWith(
@@ -117,6 +134,7 @@ final class StepCounterController extends ChangeNotifier {
     _uiError = null;
 
     try {
+      _recordDiagnostic(StepDiagnosticEventType.resetRequested);
       if (await trackingService.isRunning()) {
         trackingService.requestReset();
       } else {
@@ -128,6 +146,7 @@ final class StepCounterController extends ChangeNotifier {
           await store.close();
         }
       }
+      _recordDiagnostic(StepDiagnosticEventType.resetCompleted);
     } catch (error) {
       _uiError = error.toString();
     } finally {
@@ -184,11 +203,17 @@ final class StepCounterController extends ChangeNotifier {
 
     final payload = data['payload'];
     if (payload is! Map) return;
+    final receivedDiagnosticSessionId = data['diagnosticSessionId']?.toString();
 
     _snapshot = StepSnapshot.fromMap(
       payload.map<String, dynamic>(
         (key, value) => MapEntry(key.toString(), value),
       ),
+    );
+    _recordDiagnostic(
+      StepDiagnosticEventType.snapshotReceived,
+      payload: _snapshotDiagnosticPayload(),
+      expectedSessionId: receivedDiagnosticSessionId,
     );
 
     logStepDiagnostic(
@@ -199,6 +224,11 @@ final class StepCounterController extends ChangeNotifier {
 
     _uiError = null;
     notifyListeners();
+    _recordDiagnostic(
+      StepDiagnosticEventType.uiStateUpdated,
+      payload: _snapshotDiagnosticPayload(),
+      expectedSessionId: receivedDiagnosticSessionId,
+    );
     logStepDiagnostic(
       '[STEP_UI_NOTIFY] confirmed=${_snapshot.confirmedSteps} '
       'provisional=${_snapshot.provisionalSteps} '
@@ -213,6 +243,30 @@ final class StepCounterController extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  void _recordDiagnostic(
+    String eventType, {
+    Map<String, Object?> payload = const <String, Object?>{},
+    String? expectedSessionId,
+  }) {
+    final service = trackingService;
+    if (service is StepDiagnosticRecorder) {
+      final recorder = service as StepDiagnosticRecorder;
+      if (expectedSessionId != null &&
+          expectedSessionId != recorder.diagnosticSessionId) {
+        return;
+      }
+      recorder.recordDiagnosticEvent(eventType, payload: payload);
+    }
+  }
+
+  Map<String, Object?> _snapshotDiagnosticPayload() => <String, Object?>{
+    'confirmedSteps': _snapshot.confirmedSteps,
+    'provisionalSteps': _snapshot.provisionalSteps,
+    'displayedSteps': _snapshot.displayedSteps,
+    'isTracking': _snapshot.isTracking,
+    'activity': _snapshot.activity.storageName,
+  };
 
   @override
   void dispose() {

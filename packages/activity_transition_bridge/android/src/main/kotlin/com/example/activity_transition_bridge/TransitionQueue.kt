@@ -1,6 +1,7 @@
 package com.example.activity_transition_bridge
 
 import android.content.Context
+import android.os.SystemClock
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -11,6 +12,9 @@ internal data class QueuedTransition(
     val transitionType: String,
     val eventElapsedRealtimeNanos: Long,
     val receivedElapsedRealtimeNanos: Long,
+    val receiverEnteredElapsedRealtimeNanos: Long = receivedElapsedRealtimeNanos,
+    val transitionResultParsedElapsedRealtimeNanos: Long? = null,
+    val transitionQueuedElapsedRealtimeNanos: Long? = null,
 ) {
     fun toJson(): JSONObject = JSONObject()
         .put("id", id)
@@ -19,14 +23,20 @@ internal data class QueuedTransition(
         .put("transitionType", transitionType)
         .put("eventElapsedRealtimeNanos", eventElapsedRealtimeNanos)
         .put("receivedElapsedRealtimeNanos", receivedElapsedRealtimeNanos)
+        .put("receiverEnteredElapsedRealtimeNanos", receiverEnteredElapsedRealtimeNanos)
+        .put("transitionResultParsedElapsedRealtimeNanos", transitionResultParsedElapsedRealtimeNanos)
+        .put("transitionQueuedElapsedRealtimeNanos", transitionQueuedElapsedRealtimeNanos)
 
-    fun toMap(): Map<String, Any> = mapOf(
+    fun toMap(): Map<String, Any?> = mapOf(
         "id" to id,
         "sessionId" to sessionId,
         "activityType" to activityType,
         "transitionType" to transitionType,
         "eventElapsedRealtimeNanos" to eventElapsedRealtimeNanos,
         "receivedElapsedRealtimeNanos" to receivedElapsedRealtimeNanos,
+        "receiverEnteredElapsedRealtimeNanos" to receiverEnteredElapsedRealtimeNanos,
+        "transitionResultParsedElapsedRealtimeNanos" to transitionResultParsedElapsedRealtimeNanos,
+        "transitionQueuedElapsedRealtimeNanos" to transitionQueuedElapsedRealtimeNanos,
     )
 
     companion object {
@@ -37,6 +47,16 @@ internal data class QueuedTransition(
             transitionType = value.getString("transitionType"),
             eventElapsedRealtimeNanos = value.getLong("eventElapsedRealtimeNanos"),
             receivedElapsedRealtimeNanos = value.getLong("receivedElapsedRealtimeNanos"),
+            receiverEnteredElapsedRealtimeNanos = value.optLong(
+                "receiverEnteredElapsedRealtimeNanos",
+                value.getLong("receivedElapsedRealtimeNanos"),
+            ),
+            transitionResultParsedElapsedRealtimeNanos = value.optNullableLong(
+                "transitionResultParsedElapsedRealtimeNanos",
+            ),
+            transitionQueuedElapsedRealtimeNanos = value.optNullableLong(
+                "transitionQueuedElapsedRealtimeNanos",
+            ),
         )
     }
 }
@@ -46,13 +66,22 @@ internal object TransitionQueue {
     private const val queueKey = "transition_queue"
     private const val sessionKey = "active_session"
     private const val registeredKey = "registered"
+    private const val diagnosticSessionKey = "diagnostic_session"
+    private const val diagnosticDirectoryKey = "diagnostic_directory"
 
     @Synchronized
-    fun beginSession(context: Context, sessionId: String) {
+    fun beginSession(
+        context: Context,
+        sessionId: String,
+        diagnosticSessionId: String?,
+        diagnosticDirectoryPath: String?,
+    ) {
         preferences(context).edit()
             .putString(sessionKey, sessionId)
             .putBoolean(registeredKey, true)
             .putString(queueKey, "[]")
+            .putString(diagnosticSessionKey, diagnosticSessionId)
+            .putString(diagnosticDirectoryKey, diagnosticDirectoryPath)
             .commit()
     }
 
@@ -64,6 +93,8 @@ internal object TransitionQueue {
             .remove(sessionKey)
             .putBoolean(registeredKey, false)
             .putString(queueKey, "[]")
+            .remove(diagnosticSessionKey)
+            .remove(diagnosticDirectoryKey)
             .commit()
     }
 
@@ -74,18 +105,29 @@ internal object TransitionQueue {
         return preferences.getString(sessionKey, null)
     }
 
+    fun diagnosticSession(context: Context): Pair<String, String>? {
+        val preferences = preferences(context)
+        val id = preferences.getString(diagnosticSessionKey, null) ?: return null
+        val directory = preferences.getString(diagnosticDirectoryKey, null) ?: return null
+        return id to directory
+    }
+
     @Synchronized
     fun append(context: Context, event: QueuedTransition): Boolean {
         if (activeSession(context) != event.sessionId) return false
         val events = read(context).toMutableList()
         if (events.any { it.id == event.id }) return false
-        events.add(event)
+        events.add(
+            event.copy(
+                transitionQueuedElapsedRealtimeNanos =
+                    SystemClock.elapsedRealtimeNanos(),
+            ),
+        )
         events.sortWith(
             compareBy<QueuedTransition> { it.eventElapsedRealtimeNanos }
                 .thenBy { it.id },
         )
-        write(context, events)
-        return true
+        return write(context, events)
     }
 
     @Synchronized
@@ -121,12 +163,15 @@ internal object TransitionQueue {
         }.getOrDefault(emptyList())
     }
 
-    private fun write(context: Context, events: List<QueuedTransition>) {
+    private fun write(context: Context, events: List<QueuedTransition>): Boolean {
         val array = JSONArray()
         events.forEach { array.put(it.toJson()) }
-        preferences(context).edit().putString(queueKey, array.toString()).commit()
+        return preferences(context).edit().putString(queueKey, array.toString()).commit()
     }
 
     private fun preferences(context: Context) =
         context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
 }
+
+private fun JSONObject.optNullableLong(key: String): Long? =
+    if (has(key) && !isNull(key)) getLong(key) else null

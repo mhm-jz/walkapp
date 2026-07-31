@@ -2466,4 +2466,64 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get transitionBasedDetection => 'Transition-based detection';
+
+  @override
+  String get diagnosticReports => 'Diagnostic reports';
+
+  @override
+  String get diagnosticReportsDescription =>
+      'Review and export controlled step-tracking sessions.';
+
+  @override
+  String get diagnosticNoReports => 'No diagnostic reports are available.';
+
+  @override
+  String get diagnosticTestMetadata => 'Test session details';
+
+  @override
+  String get diagnosticTestName => 'Test name';
+
+  @override
+  String get diagnosticManualSteps => 'Manually counted steps';
+
+  @override
+  String get diagnosticRouteDescription => 'Route description';
+
+  @override
+  String get diagnosticNotes => 'Test notes';
+
+  @override
+  String get diagnosticEditMetadata => 'Add or edit test details';
+
+  @override
+  String get diagnosticExportReport => 'Export report';
+
+  @override
+  String get diagnosticDeleteSession => 'Delete diagnostic session';
+
+  @override
+  String get diagnosticClearReports => 'Clear reports';
+
+  @override
+  String diagnosticSessionSummary(
+    String mode,
+    int candidates,
+    int accepted,
+    int rejected,
+  ) {
+    return '$mode · $candidates candidates · $accepted accepted · $rejected rejected';
+  }
+
+  @override
+  String diagnosticSessionDetails(
+    String mode,
+    int durationSeconds,
+    int candidates,
+    int accepted,
+    int rejected,
+    int confirmedGained,
+    String manualSteps,
+  ) {
+    return '$mode · ${durationSeconds}s · $candidates raw · $accepted accepted · $rejected rejected · +$confirmedGained confirmed · manual $manualSteps';
+  }
 }

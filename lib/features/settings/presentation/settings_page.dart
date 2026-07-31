@@ -8,6 +8,8 @@ import '../../../core/design_system/components/app_selection.dart';
 import '../../../core/design_system/extensions/app_theme_extension.dart';
 import '../../../core/design_system/tokens/app_tokens.dart';
 import '../../../core/preferences/app_settings_controller.dart';
+import '../../../core/diagnostics/step_diagnostic_config.dart';
+import '../../../core/diagnostics/step_diagnostics_page.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../step_counter/presentation/widgets/daily_goal_sheet.dart';
 
@@ -300,6 +302,25 @@ class SettingsPage extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: AppSpacing.xl),
+                        if (StepDiagnosticConfig.enabled) ...<Widget>[
+                          _SectionTitle(title: l10n.diagnosticReports),
+                          const SizedBox(height: AppSpacing.sm),
+                          AppCard(
+                            padding: EdgeInsets.zero,
+                            child: ListTile(
+                              leading: const Icon(Icons.bug_report_outlined),
+                              title: Text(l10n.diagnosticReports),
+                              subtitle: Text(l10n.diagnosticReportsDescription),
+                              trailing: const Icon(Icons.chevron_right),
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const StepDiagnosticsPage(),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.xl),
+                        ],
                         _SectionTitle(title: l10n.about),
                         const SizedBox(height: AppSpacing.sm),
                         AppCard(

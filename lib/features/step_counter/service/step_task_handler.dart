@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:activity_transition_bridge/activity_transition_bridge.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:pedometer/pedometer.dart';
 
+import '../../../core/diagnostics/step_diagnostic_event.dart';
+import '../../../core/diagnostics/step_diagnostic_logger.dart';
 import '../data/step_local_store.dart';
 import '../data/step_snapshot.dart';
 import '../domain/step_validation_policy.dart';
@@ -52,6 +55,8 @@ final class StepTaskHandler extends TaskHandler {
   int? _elapsedRealtimeAnchorNanos;
   int? _transitionEvidenceFloorNanos;
   Stopwatch? _monotonicClock;
+  StepDiagnosticLogger? _diagnostics;
+  int _windowId = 0;
 
   @override
   Future<void> onStart(DateTime timestamp, TaskStarter starter) async {
@@ -68,9 +73,43 @@ final class StepTaskHandler extends TaskHandler {
         throw StateError('Hive path was not provided to the service.');
       }
 
+      final diagnosticSessionId = await FlutterForegroundTask.getData<String>(
+        key: StepLocalStore.taskDiagnosticSessionIdKey,
+      );
+      if (diagnosticSessionId != null && diagnosticSessionId.isNotEmpty) {
+        final savedDiagnosticStartElapsedMs =
+            await FlutterForegroundTask.getData<int>(
+              key: StepLocalStore.taskDiagnosticSessionStartElapsedMsKey,
+            );
+        final diagnosticRecordingAnchorNanos =
+            await ActivityTransitionBridge.elapsedRealtimeNanos();
+        _diagnostics = await StepDiagnosticLogger.create(
+          applicationSupportPath: directoryPath,
+          source: 'background',
+          sessionId: diagnosticSessionId,
+          sessionStartElapsedRealtimeMs:
+              savedDiagnosticStartElapsedMs ??
+              (diagnosticRecordingAnchorNanos == null
+                  ? null
+                  : diagnosticRecordingAnchorNanos ~/ 1000000),
+          recordingClockAnchorElapsedRealtimeMs:
+              diagnosticRecordingAnchorNanos == null
+              ? null
+              : diagnosticRecordingAnchorNanos ~/ 1000000,
+        );
+      }
+      _diagnostics?.record(
+        StepDiagnosticEventType.serviceStart,
+        payload: <String, Object?>{'starter': starter.name},
+      );
+
       _store = StepLocalStore(directoryPath: directoryPath);
       final previousSnapshot = await _store!.readSnapshot(
         reason: 'serviceStart',
+      );
+      _diagnostics?.record(
+        StepDiagnosticEventType.hiveRead,
+        payload: _snapshotPayload(previousSnapshot, reason: 'serviceStart'),
       );
       _session = StepValidationSession(
         confirmedSteps: previousSnapshot.confirmedSteps,
@@ -88,6 +127,11 @@ final class StepTaskHandler extends TaskHandler {
       _publish(reason: 'serviceStarted', persist: true);
       unawaited(_drainTransitions());
     } catch (error, stackTrace) {
+      _diagnostics?.record(
+        StepDiagnosticEventType.serviceError,
+        payload: <String, Object?>{'failureType': error.runtimeType.toString()},
+        flush: true,
+      );
       logStepDiagnostic(
         '[STEP_TRANSITION_REGISTER] activity=ALL transition=ENTER_EXIT '
         'eventElapsedMs=none receivedElapsedMs=none deliveryDelayMs=none '
@@ -108,8 +152,24 @@ final class StepTaskHandler extends TaskHandler {
         '${timestamp.microsecondsSinceEpoch}-${identityHashCode(this)}';
     _transitionSessionId = sessionId;
     _deliveredTransitionIds.clear();
+    _diagnostics?.record(
+      StepDiagnosticEventType.transitionRegisterRequest,
+      payload: <String, Object?>{
+        'transitionSessionId': sessionId,
+        'activities': <String>[
+          'WALKING',
+          'RUNNING',
+          'STILL',
+          'ON_BICYCLE',
+          'IN_VEHICLE',
+        ],
+        'transitions': <String>['ENTER', 'EXIT'],
+      },
+    );
     final registration = await ActivityTransitionBridge.register(
       sessionId: sessionId,
+      diagnosticSessionId: _diagnostics?.sessionId,
+      diagnosticDirectoryPath: _diagnostics?.store.directory.path,
     );
     if (registration.sessionId != sessionId) {
       throw StateError('Transition registration session mismatch.');
@@ -119,6 +179,17 @@ final class StepTaskHandler extends TaskHandler {
         registration.sessionStartElapsedRealtimeNanos;
     _monotonicClock = Stopwatch()..start();
     final elapsedMs = registration.sessionStartElapsedRealtimeNanos ~/ 1000000;
+    _diagnostics?.attachMonotonicSessionClock(elapsedMs);
+    _diagnostics?.record(
+      StepDiagnosticEventType.transitionRegisterSuccess,
+      elapsedRealtimeMs: elapsedMs,
+      payload: <String, Object?>{
+        'transitionSessionId': sessionId,
+        'sessionStartElapsedRealtimeNanos':
+            registration.sessionStartElapsedRealtimeNanos,
+      },
+      flush: true,
+    );
     logStepDiagnostic(
       '[STEP_TRANSITION_REGISTER] activity=ALL transition=ENTER_EXIT '
       'eventElapsedMs=$elapsedMs receivedElapsedMs=$elapsedMs '
@@ -127,6 +198,7 @@ final class StepTaskHandler extends TaskHandler {
   }
 
   void _subscribeToPedometer() {
+    _diagnostics?.record(StepDiagnosticEventType.pedometerSubscribe);
     logStepDiagnostic(
       '[STEP_SENSOR_SUBSCRIBE] timestamp=${DateTime.now().toIso8601String()} '
       'alreadySubscribed=${_stepSubscription != null}',
@@ -157,6 +229,29 @@ final class StepTaskHandler extends TaskHandler {
         'timestamp=${now.toIso8601String()} eventElapsedMs=none '
         'result=ignoredNotTracking',
       );
+      _diagnostics?.record(
+        StepDiagnosticEventType.pedometerCallback,
+        payload: <String, Object?>{
+          'sensorCumulativeValue': event.steps,
+          'previousSensorCumulativeValue': previousRawSteps,
+          'calculatedDelta': delta,
+          'pedometerCallbackReceivedElapsedRealtimeMs': null,
+          'pedometerCallbackReceivedWallClockUtc': now
+              .toUtc()
+              .toIso8601String(),
+          'sensorEventElapsedRealtimeMs': null,
+          'sensorEventTimestampAvailable': false,
+          'accepted': false,
+          'rejectionReason': 'OUT_OF_ACTIVE_SESSION',
+        },
+      );
+      _diagnostics?.record(
+        StepDiagnosticEventType.rawDeltaRejected,
+        payload: <String, Object?>{
+          'delta': delta,
+          'reason': 'OUT_OF_ACTIVE_SESSION',
+        },
+      );
       return;
     }
 
@@ -164,6 +259,35 @@ final class StepTaskHandler extends TaskHandler {
     final update = session.recordRawReading(
       cumulativeRawSteps: event.steps,
       elapsedRealtimeNanos: elapsedNanos,
+    );
+    final elapsedMs = elapsedNanos ~/ 1000000;
+    final reason = switch (update.status) {
+      RawStepStatus.baselineEstablished => 'BASELINE_ONLY',
+      RawStepStatus.provisionalAdded => null,
+      RawStepStatus.ignored when delta != null && delta <= 0 =>
+        'NON_POSITIVE_DELTA',
+      RawStepStatus.ignored
+          when delta != null && delta > validationPolicy.maxRawDeltaPerEvent =>
+        'DELTA_OVER_LIMIT',
+      RawStepStatus.ignored => 'UNKNOWN',
+    };
+    _diagnostics?.record(
+      StepDiagnosticEventType.pedometerCallback,
+      elapsedRealtimeMs: elapsedMs,
+      windowId: session.hasActiveWindow ? _windowId : null,
+      bucketIndex: update.bucketIndex,
+      payload: <String, Object?>{
+        'sensorCumulativeValue': event.steps,
+        'previousSensorCumulativeValue': previousRawSteps,
+        'calculatedDelta': delta,
+        'pedometerCallbackReceivedElapsedRealtimeMs': elapsedMs,
+        'pedometerCallbackReceivedWallClockUtc': now.toUtc().toIso8601String(),
+        'sensorEventElapsedRealtimeMs': null,
+        'sensorEventTimestampAvailable': false,
+        'accepted': update.status == RawStepStatus.provisionalAdded,
+        'rejectionReason': reason,
+        'provisionalTotalAfterCallback': session.provisionalSteps,
+      },
     );
     logStepDiagnostic(
       '[STEP_SENSOR] raw=${event.steps} '
@@ -176,11 +300,75 @@ final class StepTaskHandler extends TaskHandler {
 
     switch (update.status) {
       case RawStepStatus.baselineEstablished:
+        _diagnostics?.record(
+          StepDiagnosticEventType.pedometerBaseline,
+          elapsedRealtimeMs: elapsedMs,
+          payload: <String, Object?>{'sensorCumulativeValue': event.steps},
+        );
         _publish(reason: 'sensorBaseline');
         return;
       case RawStepStatus.ignored:
+        _diagnostics?.record(
+          StepDiagnosticEventType.rawDeltaRejected,
+          elapsedRealtimeMs: elapsedMs,
+          payload: <String, Object?>{'delta': delta, 'reason': reason},
+        );
         return;
       case RawStepStatus.provisionalAdded:
+        if (update.startedWindow) {
+          _windowId++;
+          _diagnostics?.record(
+            StepDiagnosticEventType.windowOpen,
+            elapsedRealtimeMs: elapsedMs,
+            windowId: _windowId,
+            payload: <String, Object?>{
+              'windowOpenedElapsedRealtimeMs': elapsedMs,
+              'windowStartElapsedRealtimeMs':
+                  session.activeWindowStartElapsedRealtimeNanos! ~/ 1000000,
+              'windowEndElapsedRealtimeMs':
+                  session.activeWindowEndElapsedRealtimeNanos! ~/ 1000000,
+            },
+          );
+        }
+        _diagnostics?.record(
+          StepDiagnosticEventType.rawDeltaAccepted,
+          elapsedRealtimeMs: elapsedMs,
+          windowId: _windowId,
+          bucketIndex: update.bucketIndex,
+          payload: <String, Object?>{'delta': update.delta},
+        );
+        _diagnostics?.record(
+          StepDiagnosticEventType.candidateSampleCreated,
+          elapsedRealtimeMs: elapsedMs,
+          windowId: _windowId,
+          bucketIndex: update.bucketIndex,
+          payload: <String, Object?>{
+            'delta': update.delta,
+            'candidateObservedElapsedRealtimeMs': elapsedMs,
+            'candidateAssignedElapsedRealtimeMs': elapsedMs,
+            'candidateTimeSource': 'PEDOMETER_CALLBACK_RECEIVE_TIME',
+          },
+        );
+        _diagnostics?.record(
+          StepDiagnosticEventType.bucketAssignment,
+          elapsedRealtimeMs: elapsedMs,
+          windowId: _windowId,
+          bucketIndex: update.bucketIndex,
+          payload: <String, Object?>{
+            'delta': update.delta,
+            'bucketStartElapsedRealtimeMs':
+                session.activeWindowStartElapsedRealtimeNanos! ~/ 1000000 +
+                update.bucketIndex! *
+                    validationPolicy.bucketDuration.inMilliseconds,
+            'bucketEndElapsedRealtimeMs':
+                session.activeWindowStartElapsedRealtimeNanos! ~/ 1000000 +
+                (update.bucketIndex! + 1) *
+                    validationPolicy.bucketDuration.inMilliseconds,
+            'candidateObservedElapsedRealtimeMs': elapsedMs,
+            'candidateAssignedElapsedRealtimeMs': elapsedMs,
+            'candidateTimeSource': 'PEDOMETER_CALLBACK_RECEIVE_TIME',
+          },
+        );
         if (update.startedWindow) {
           _startValidationTimer();
         }
@@ -225,6 +413,19 @@ final class StepTaskHandler extends TaskHandler {
     final session = _session;
     if (session == null || !session.hasActiveWindow) return;
     session.closeActiveWindow();
+    _diagnostics?.record(
+      StepDiagnosticEventType.windowClose,
+      elapsedRealtimeMs:
+          session.pendingWindowEndElapsedRealtimeNanos! ~/ 1000000,
+      windowId: _windowId,
+      payload: <String, Object?>{
+        'windowStartElapsedRealtimeMs':
+            session.pendingWindowStartElapsedRealtimeNanos! ~/ 1000000,
+        'windowEndElapsedRealtimeMs':
+            session.pendingWindowEndElapsedRealtimeNanos! ~/ 1000000,
+        'provisionalSteps': session.provisionalSteps,
+      },
+    );
     logStepDiagnostic(
       '[STEP_TIMER_COMPLETE] timestamp=${DateTime.now().toIso8601String()} '
       'windowStartElapsedMs='
@@ -248,6 +449,25 @@ final class StepTaskHandler extends TaskHandler {
       'deliveryDelayMs=0 sessionId=${sessionId ?? 'none'} '
       'graceMs=${validationPolicy.transitionLateEventGracePeriod.inMilliseconds}',
     );
+    final graceStartedMs = _toNullableElapsedMs(_currentElapsedRealtimeNanos);
+    _diagnostics?.record(
+      StepDiagnosticEventType.graceStart,
+      elapsedRealtimeMs: _toNullableElapsedMs(_currentElapsedRealtimeNanos),
+      windowId: _windowId,
+      payload: <String, Object?>{
+        'graceStartedElapsedRealtimeMs': graceStartedMs,
+        'graceExpectedEndElapsedRealtimeMs': graceStartedMs == null
+            ? null
+            : graceStartedMs +
+                  validationPolicy
+                      .transitionLateEventGracePeriod
+                      .inMilliseconds,
+        'windowEndElapsedRealtimeMs': _toNullableElapsedMs(
+          session?.pendingWindowEndElapsedRealtimeNanos,
+        ),
+      },
+      flush: true,
+    );
     _graceTimer = Timer(
       validationPolicy.transitionLateEventGracePeriod,
       _onGraceExpired,
@@ -263,6 +483,29 @@ final class StepTaskHandler extends TaskHandler {
       '${_toElapsedMs(_session?.pendingWindowEndElapsedRealtimeNanos)} '
       'receivedElapsedMs=${_toElapsedMs(_currentElapsedRealtimeNanos)} '
       'deliveryDelayMs=0 sessionId=${sessionId ?? 'none'}',
+    );
+    _diagnostics?.record(
+      StepDiagnosticEventType.graceExpired,
+      elapsedRealtimeMs: _toNullableElapsedMs(_currentElapsedRealtimeNanos),
+      windowId: _windowId,
+      payload: <String, Object?>{
+        'graceExpiredElapsedRealtimeMs': _toNullableElapsedMs(
+          _currentElapsedRealtimeNanos,
+        ),
+        'windowEndElapsedRealtimeMs': _toNullableElapsedMs(
+          _session?.pendingWindowEndElapsedRealtimeNanos,
+        ),
+        ..._timingInvariantPayload(<(String, int?, int?)>[
+          (
+            'windowEndElapsedRealtimeMs<=graceExpiredElapsedRealtimeMs',
+            _toNullableElapsedMs(
+              _session?.pendingWindowEndElapsedRealtimeNanos,
+            ),
+            _toNullableElapsedMs(_currentElapsedRealtimeNanos),
+          ),
+        ]),
+      },
+      flush: true,
     );
     if (!_isTracking || _isStopping) return;
     unawaited(_drainTransitions(finalizePendingAfterDrain: true));
@@ -288,9 +531,30 @@ final class StepTaskHandler extends TaskHandler {
 
     _isDrainingTransitions = true;
     try {
+      await _drainNativeReceiverDiagnostics();
       final events = await ActivityTransitionBridge.peek(sessionId: sessionId);
       final acknowledged = <String>[];
       for (final nativeEvent in events) {
+        final dartDequeuedElapsedMs = _toNullableElapsedMs(
+          _currentElapsedRealtimeNanos,
+        );
+        final nativeReceiveElapsedMs =
+            nativeEvent.receivedElapsedRealtimeNanos ~/ 1000000;
+        _diagnostics?.record(
+          StepDiagnosticEventType.transitionEventReceived,
+          elapsedRealtimeMs: nativeReceiveElapsedMs,
+          payload: <String, Object?>{
+            'activity': nativeEvent.activityType,
+            'transition': nativeEvent.transitionType,
+            ..._transitionTimingPayload(
+              nativeEvent,
+              dartDequeuedElapsedMs: dartDequeuedElapsedMs,
+            ),
+            'transitionSessionId': nativeEvent.sessionId,
+            'deduplicationKey': nativeEvent.id,
+            'queueResult': 'peeked',
+          },
+        );
         if (_transitionSessionId != sessionId ||
             nativeEvent.sessionId != sessionId ||
             !_isTracking ||
@@ -299,6 +563,14 @@ final class StepTaskHandler extends TaskHandler {
         }
         final evidence = _toEvidence(nativeEvent);
         if (evidence == null) {
+          _diagnostics?.record(
+            StepDiagnosticEventType.transitionEventFiltered,
+            elapsedRealtimeMs: nativeReceiveElapsedMs,
+            payload: <String, Object?>{
+              'deduplicationKey': nativeEvent.id,
+              'reason': 'UNSUPPORTED_ACTIVITY_OR_TRANSITION',
+            },
+          );
           acknowledged.add(nativeEvent.id);
           continue;
         }
@@ -326,6 +598,9 @@ final class StepTaskHandler extends TaskHandler {
         final added =
             _deliveredTransitionIds.add(evidence.id) &&
             session.recordTransition(evidence);
+        final dartProcessedElapsedMs = _toNullableElapsedMs(
+          _currentElapsedRealtimeNanos,
+        );
         final delayMs =
             (evidence.receivedElapsedRealtimeNanos -
                 evidence.eventElapsedRealtimeNanos) ~/
@@ -341,6 +616,47 @@ final class StepTaskHandler extends TaskHandler {
           'deliveryDelayMs=$delayMs sessionId=$sessionId',
         );
         if (added) {
+          _diagnostics?.record(
+            StepDiagnosticEventType.transitionEventDelivered,
+            elapsedRealtimeMs: _toNullableElapsedMs(
+              _currentElapsedRealtimeNanos,
+            ),
+            payload: <String, Object?>{
+              'activity': evidence.activity.storageName,
+              'transition': evidence.transition.storageName,
+              ..._transitionTimingPayload(
+                nativeEvent,
+                dartDequeuedElapsedMs: dartDequeuedElapsedMs,
+                dartProcessedElapsedMs: dartProcessedElapsedMs,
+              ),
+              'transitionSessionId': sessionId,
+              'deduplicationKey': evidence.id,
+              'queueResult': 'recorded',
+            },
+          );
+          _diagnostics?.record(
+            evidence.transition == ActivityTransitionType.enter
+                ? StepDiagnosticEventType.transitionIntervalOpened
+                : StepDiagnosticEventType.transitionIntervalClosed,
+            elapsedRealtimeMs: evidence.eventElapsedRealtimeNanos ~/ 1000000,
+            payload: <String, Object?>{
+              'activity': evidence.activity.storageName,
+              'transition': evidence.transition.storageName,
+              'deduplicationKey': evidence.id,
+              'affectedWindow': _windowId,
+              if (evidence.transition == ActivityTransitionType.enter) ...{
+                'intervalOpenedByEventElapsedRealtimeMs':
+                    evidence.eventElapsedRealtimeNanos ~/ 1000000,
+                'intervalOpenProcessedElapsedRealtimeMs':
+                    dartProcessedElapsedMs,
+              } else ...{
+                'intervalClosedByEventElapsedRealtimeMs':
+                    evidence.eventElapsedRealtimeNanos ~/ 1000000,
+                'intervalCloseProcessedElapsedRealtimeMs':
+                    dartProcessedElapsedMs,
+              },
+            },
+          );
           _activity = session.activityAt(evidence.receivedElapsedRealtimeNanos);
           logStepDiagnostic(
             '[STEP_TRANSITION_INTERVAL] '
@@ -384,6 +700,40 @@ final class StepTaskHandler extends TaskHandler {
     }
   }
 
+  Future<void> _drainNativeReceiverDiagnostics() async {
+    final logger = _diagnostics;
+    if (logger == null) return;
+    final lines = await ActivityTransitionBridge.peekReceiverDiagnostics(
+      diagnosticSessionId: logger.sessionId,
+    );
+    if (lines.isEmpty) return;
+    final persistedIds = <String>[];
+    for (final line in lines) {
+      try {
+        final decoded = jsonDecode(line);
+        if (decoded is! Map) continue;
+        final event = decoded.map<String, Object?>(
+          (key, value) => MapEntry(key.toString(), value),
+        );
+        final diagnosticId = event['diagnosticId']?.toString();
+        if (diagnosticId == null) continue;
+        if (logger.hasImportedDiagnosticId(diagnosticId) ||
+            logger.importPersistedEvent(event)) {
+          persistedIds.add(diagnosticId);
+        }
+      } catch (_) {
+        // A malformed diagnostic record must not affect Transition delivery.
+      }
+    }
+    await logger.flush();
+    if (persistedIds.isNotEmpty) {
+      await ActivityTransitionBridge.acknowledgeReceiverDiagnostics(
+        diagnosticSessionId: logger.sessionId,
+        diagnosticIds: persistedIds,
+      );
+    }
+  }
+
   ActivityTransitionEvidence? _toEvidence(NativeActivityTransitionEvent event) {
     final activity = TrackingActivity.fromStorage(event.activityType);
     if (activity == TrackingActivity.unknown) return null;
@@ -405,11 +755,56 @@ final class StepTaskHandler extends TaskHandler {
 
   void _finalizePendingWindow() {
     final session = _session;
-    final result = session?.finalizePendingWindow();
-    if (session == null || result == null) return;
+    if (session == null) return;
+    final validationStartedElapsedMs = _toNullableElapsedMs(
+      _currentElapsedRealtimeNanos,
+    );
+    final confirmedBefore = session.confirmedSteps;
+    final provisionalBefore = session.provisionalSteps;
+    final result = session.finalizePendingWindow();
+    final validationCompletedElapsedMs = _toNullableElapsedMs(
+      _currentElapsedRealtimeNanos,
+    );
+    if (result == null) return;
     final sessionId = _transitionSessionId ?? 'none';
 
     for (final bucket in result.buckets) {
+      final bucketStartElapsedMs =
+          result.windowStartElapsedRealtimeNanos ~/ 1000000 +
+          bucket.bucketIndex * validationPolicy.bucketDuration.inMilliseconds;
+      final bucketEndElapsedMs =
+          bucketStartElapsedMs + validationPolicy.bucketDuration.inMilliseconds;
+      _diagnostics?.record(
+        StepDiagnosticEventType.bucketValidation,
+        elapsedRealtimeMs: result.windowEndElapsedRealtimeNanos ~/ 1000000,
+        windowId: _windowId,
+        bucketIndex: bucket.bucketIndex,
+        payload: <String, Object?>{
+          'bucketStartElapsedRealtimeMs': bucketStartElapsedMs,
+          'bucketEndElapsedRealtimeMs': bucketEndElapsedMs,
+          'validationStartedElapsedRealtimeMs': validationStartedElapsedMs,
+          'validationCompletedElapsedRealtimeMs': validationCompletedElapsedMs,
+          'validationDurationMs': _durationOrNull(
+            validationStartedElapsedMs,
+            validationCompletedElapsedMs,
+          ),
+          'candidateSteps': bucket.candidateSteps,
+          'acceptedSteps': bucket.acceptedSteps,
+          'rejectedSteps': bucket.rejectedSteps,
+          'validationReason': bucket.acceptedSteps > 0
+              ? 'ACCEPTED_WALKING_OR_RUNNING_INTERVAL'
+              : (bucket.disqualifyingIntervals.isNotEmpty
+                    ? 'REJECTED_VEHICLE_OR_BICYCLE'
+                    : 'REJECTED_NO_QUALIFYING_INTERVAL'),
+          'activityEvidenceUsed': <String, Object?>{
+            'qualifyingIntervals': _intervalPayload(bucket.qualifyingIntervals),
+            'disqualifyingIntervals': _intervalPayload(
+              bucket.disqualifyingIntervals,
+            ),
+          },
+          'activityEvidenceIgnored': const <Object?>[],
+        },
+      );
       logStepDiagnostic(
         '[STEP_TRANSITION_WINDOW_VALIDATION] '
         'windowStartElapsedMs='
@@ -434,6 +829,43 @@ final class StepTaskHandler extends TaskHandler {
         'transitionOnly=true',
       );
     }
+    _diagnostics?.record(
+      StepDiagnosticEventType.windowValidation,
+      elapsedRealtimeMs: result.windowEndElapsedRealtimeNanos ~/ 1000000,
+      windowId: _windowId,
+      payload: <String, Object?>{
+        'windowStartElapsedRealtimeMs':
+            result.windowStartElapsedRealtimeNanos ~/ 1000000,
+        'windowEndElapsedRealtimeMs':
+            result.windowEndElapsedRealtimeNanos ~/ 1000000,
+        'validationStartedElapsedRealtimeMs': validationStartedElapsedMs,
+        'validationCompletedElapsedRealtimeMs': validationCompletedElapsedMs,
+        'validationDurationMs': _durationOrNull(
+          validationStartedElapsedMs,
+          validationCompletedElapsedMs,
+        ),
+        ..._timingInvariantPayload(<(String, int?, int?)>[
+          (
+            'windowStartElapsedRealtimeMs<=windowEndElapsedRealtimeMs',
+            result.windowStartElapsedRealtimeNanos ~/ 1000000,
+            result.windowEndElapsedRealtimeNanos ~/ 1000000,
+          ),
+          (
+            'validationStartedElapsedRealtimeMs<=validationCompletedElapsedRealtimeMs',
+            validationStartedElapsedMs,
+            validationCompletedElapsedMs,
+          ),
+        ]),
+        'candidateSteps': result.confirmedStepsAdded + result.stepsRejected,
+        'acceptedSteps': result.confirmedStepsAdded,
+        'rejectedSteps': result.stepsRejected,
+        'confirmedTotalBeforeValidation': confirmedBefore,
+        'confirmedTotalAfterValidation': session.confirmedSteps,
+        'provisionalTotalBeforeValidation': provisionalBefore,
+        'provisionalTotalAfterValidation': session.provisionalSteps,
+      },
+      flush: true,
+    );
     logStepDiagnostic(
       '[STEP_VALIDATION] accepted=${result.confirmedStepsAdded} '
       'rejected=${result.stepsRejected} '
@@ -450,6 +882,11 @@ final class StepTaskHandler extends TaskHandler {
   }
 
   void _onStepCountError(Object error, StackTrace stackTrace) {
+    _diagnostics?.record(
+      StepDiagnosticEventType.pedometerError,
+      payload: <String, Object?>{'failureType': error.runtimeType.toString()},
+      flush: true,
+    );
     logStepDiagnostic(
       '[STEP_SENSOR_ERROR] timestamp=${DateTime.now().toIso8601String()} '
       'error=$error stack=${_singleLineStack(stackTrace)}',
@@ -478,6 +915,11 @@ final class StepTaskHandler extends TaskHandler {
 
   void _publish({required String reason, bool persist = false}) {
     final snapshot = _buildSnapshot();
+    _diagnostics?.record(
+      StepDiagnosticEventType.snapshotCreated,
+      elapsedRealtimeMs: _toNullableElapsedMs(_currentElapsedRealtimeNanos),
+      payload: _snapshotPayload(snapshot, reason: reason),
+    );
     _sendToMain(snapshot, reason: reason);
     _updateNotificationIfChanged(snapshot);
     if (persist) {
@@ -495,8 +937,14 @@ final class StepTaskHandler extends TaskHandler {
     );
     FlutterForegroundTask.sendDataToMain(<String, dynamic>{
       'type': 'step_snapshot',
+      'diagnosticSessionId': _diagnostics?.sessionId,
       'payload': snapshot.toMap(),
     });
+    _diagnostics?.record(
+      StepDiagnosticEventType.snapshotSent,
+      elapsedRealtimeMs: _toNullableElapsedMs(_currentElapsedRealtimeNanos),
+      payload: _snapshotPayload(snapshot, reason: reason),
+    );
   }
 
   String _notificationText(StepSnapshot snapshot) {
@@ -585,7 +1033,13 @@ final class StepTaskHandler extends TaskHandler {
     final store = _store;
     if (store == null) return;
     _writeChain = _writeChain
-        .then<void>((_) => store.writeSnapshot(snapshot, reason: reason))
+        .then<void>((_) async {
+          await store.writeSnapshot(snapshot, reason: reason);
+          _diagnostics?.record(
+            StepDiagnosticEventType.hiveWrite,
+            payload: _snapshotPayload(snapshot, reason: reason),
+          );
+        })
         .catchError((Object error, StackTrace stackTrace) {
           _error = 'Hive write error: $error';
         });
@@ -599,6 +1053,7 @@ final class StepTaskHandler extends TaskHandler {
         _publish(reason: 'uiSnapshotRequest');
         break;
       case 'reset_steps':
+        _diagnostics?.record(StepDiagnosticEventType.resetRequested);
         _cancelValidationTimer('reset');
         _cancelGraceTimer();
         _session?.reset();
@@ -612,6 +1067,7 @@ final class StepTaskHandler extends TaskHandler {
         _error = null;
         _stopReason = null;
         _publish(reason: 'reset', persist: true);
+        _diagnostics?.record(StepDiagnosticEventType.resetCompleted);
         break;
       case 'stop_tracking':
         unawaited(_stopTracking(reason: data['reason']?.toString() ?? 'user'));
@@ -643,6 +1099,11 @@ final class StepTaskHandler extends TaskHandler {
       'windowActive=${_session?.hasActiveWindow ?? false}',
     );
     _isStopping = true;
+    _diagnostics?.record(
+      StepDiagnosticEventType.serviceStop,
+      payload: <String, Object?>{'reason': reason},
+      flush: true,
+    );
     _isTracking = false;
     _stopReason = reason;
     _cancelValidationTimer('stop:$reason');
@@ -667,6 +1128,11 @@ final class StepTaskHandler extends TaskHandler {
           flush: true,
           reason: 'serviceStopped',
         );
+        _diagnostics?.record(
+          StepDiagnosticEventType.hiveWrite,
+          payload: _snapshotPayload(snapshot, reason: 'serviceStopped'),
+          flush: true,
+        );
       }
     });
   }
@@ -679,6 +1145,7 @@ final class StepTaskHandler extends TaskHandler {
     }
     await _stepSubscription?.cancel();
     _stepSubscription = null;
+    _diagnostics?.record(StepDiagnosticEventType.pedometerUnsubscribe);
   }
 
   Future<void> _unregisterTransitionsBestEffort() async {
@@ -691,6 +1158,13 @@ final class StepTaskHandler extends TaskHandler {
     if (sessionId == null) return;
     try {
       await ActivityTransitionBridge.unregister(sessionId: sessionId);
+      _diagnostics?.record(
+        StepDiagnosticEventType.transitionUnregister,
+        payload: <String, Object?>{
+          'transitionSessionId': sessionId,
+          'result': 'unregistered',
+        },
+      );
       logStepDiagnostic(
         '[STEP_TRANSITION_UNREGISTER] activity=ALL transition=ENTER_EXIT '
         'eventElapsedMs=none receivedElapsedMs=none deliveryDelayMs=0 '
@@ -715,6 +1189,11 @@ final class StepTaskHandler extends TaskHandler {
       'windowActive=${_session?.hasActiveWindow ?? false} timeout=$isTimeout',
     );
     _isTracking = false;
+    _diagnostics?.record(
+      StepDiagnosticEventType.serviceDestroy,
+      payload: <String, Object?>{'isTimeout': isTimeout},
+      flush: true,
+    );
     _isStopping = true;
     _cancelValidationTimer('destroy');
     _cancelGraceTimer();
@@ -726,6 +1205,8 @@ final class StepTaskHandler extends TaskHandler {
     await _persistFinalSnapshot();
     await _store?.close();
     _store = null;
+    await _diagnostics?.close(finalize: true, incomplete: isTimeout);
+    _diagnostics = null;
   }
 
   int? get _currentElapsedRealtimeNanos {
@@ -759,6 +1240,117 @@ final class StepTaskHandler extends TaskHandler {
 
   String _toElapsedMs(int? elapsedNanos) {
     return elapsedNanos == null ? 'none' : '${elapsedNanos ~/ 1000000}';
+  }
+
+  int? _toNullableElapsedMs(int? elapsedNanos) =>
+      elapsedNanos == null ? null : elapsedNanos ~/ 1000000;
+
+  Map<String, Object?> _snapshotPayload(
+    StepSnapshot snapshot, {
+    required String reason,
+  }) => <String, Object?>{
+    'reason': reason,
+    'confirmedSteps': snapshot.confirmedSteps,
+    'provisionalSteps': snapshot.provisionalSteps,
+    'displayedSteps': snapshot.displayedSteps,
+    'isTracking': snapshot.isTracking,
+    'activity': snapshot.activity.storageName,
+  };
+
+  List<Map<String, Object?>> _intervalPayload(
+    List<ActivityInterval> intervals,
+  ) => intervals
+      .map(
+        (interval) => <String, Object?>{
+          'activity': interval.activity.storageName,
+          'startElapsedRealtimeMs':
+              interval.startElapsedRealtimeNanos ~/ 1000000,
+          'endElapsedRealtimeMs': interval.endElapsedRealtimeNanos ~/ 1000000,
+        },
+      )
+      .toList(growable: false);
+
+  Map<String, Object?> _transitionTimingPayload(
+    NativeActivityTransitionEvent event, {
+    required int? dartDequeuedElapsedMs,
+    int? dartProcessedElapsedMs,
+  }) {
+    final eventMs = event.eventElapsedRealtimeNanos ~/ 1000000;
+    final receiverMs = event.receiverEnteredElapsedRealtimeNanos ~/ 1000000;
+    final parsedMs = _toNullableElapsedMs(
+      event.transitionResultParsedElapsedRealtimeNanos,
+    );
+    final queuedMs = _toNullableElapsedMs(
+      event.transitionQueuedElapsedRealtimeNanos,
+    );
+    return <String, Object?>{
+      'transitionEventElapsedRealtimeNanos': event.eventElapsedRealtimeNanos,
+      'transitionEventElapsedRealtimeMs': eventMs,
+      'receiverEnteredElapsedRealtimeMs': receiverMs,
+      'transitionResultParsedElapsedRealtimeMs': parsedMs,
+      'transitionQueuedElapsedRealtimeMs': queuedMs,
+      'dartDequeuedElapsedRealtimeMs': dartDequeuedElapsedMs,
+      'dartProcessedElapsedRealtimeMs': dartProcessedElapsedMs,
+      'transitionDeliveryDelayMs': receiverMs - eventMs,
+      'receiverParsingDelayMs': _durationOrNull(receiverMs, parsedMs),
+      'nativeQueueDelayMs': _durationOrNull(parsedMs, queuedMs),
+      'nativeToDartDelayMs': _durationOrNull(queuedMs, dartDequeuedElapsedMs),
+      'dartProcessingDelayMs': _durationOrNull(
+        dartDequeuedElapsedMs,
+        dartProcessedElapsedMs,
+      ),
+      'totalEventToDartProcessingDelayMs': _durationOrNull(
+        eventMs,
+        dartProcessedElapsedMs,
+      ),
+      'eventSessionOffsetMs':
+          _diagnostics?.sessionStartElapsedRealtimeMs == null
+          ? null
+          : eventMs - _diagnostics!.sessionStartElapsedRealtimeMs!,
+      ..._timingInvariantPayload(<(String, int?, int?)>[
+        (
+          'transitionEventElapsedRealtimeMs<=receiverEnteredElapsedRealtimeMs',
+          eventMs,
+          receiverMs,
+        ),
+        (
+          'receiverEnteredElapsedRealtimeMs<=transitionResultParsedElapsedRealtimeMs',
+          receiverMs,
+          parsedMs,
+        ),
+        (
+          'transitionResultParsedElapsedRealtimeMs<=transitionQueuedElapsedRealtimeMs',
+          parsedMs,
+          queuedMs,
+        ),
+        (
+          'transitionQueuedElapsedRealtimeMs<=dartDequeuedElapsedRealtimeMs',
+          queuedMs,
+          dartDequeuedElapsedMs,
+        ),
+        (
+          'dartDequeuedElapsedRealtimeMs<=dartProcessedElapsedRealtimeMs',
+          dartDequeuedElapsedMs,
+          dartProcessedElapsedMs,
+        ),
+      ]),
+    };
+  }
+
+  int? _durationOrNull(int? startMs, int? endMs) =>
+      startMs == null || endMs == null ? null : endMs - startMs;
+
+  Map<String, Object?> _timingInvariantPayload(
+    List<(String, int?, int?)> checks,
+  ) {
+    final failures = <String>[];
+    for (final (name, start, end) in checks) {
+      if (start != null && end != null && start > end) failures.add(name);
+    }
+    return <String, Object?>{
+      'timingInvariantPassed': failures.isEmpty,
+      'timingInvariantFailures': failures,
+    };
   }
 
   String _singleLineStack(StackTrace stackTrace) {

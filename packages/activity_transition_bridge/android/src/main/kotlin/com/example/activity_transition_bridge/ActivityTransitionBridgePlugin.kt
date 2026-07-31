@@ -45,11 +45,36 @@ class ActivityTransitionBridgePlugin :
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "requestPermission" -> requestPermission(result)
-            "register" -> register(requireSessionId(call), result)
+            "elapsedRealtimeNanos" -> result.success(SystemClock.elapsedRealtimeNanos())
+            "register" -> register(
+                requireSessionId(call),
+                call.argument<String>("diagnosticSessionId"),
+                call.argument<String>("diagnosticDirectoryPath"),
+                result,
+            )
             "unregister" -> unregister(requireSessionId(call), result)
             "peek" -> {
                 val events = TransitionQueue.peek(context, requireSessionId(call))
                 result.success(events.map { it.toMap() })
+            }
+            "peekReceiverDiagnostics" -> {
+                val diagnosticSessionId = requireNotNull(
+                    call.argument<String>("diagnosticSessionId"),
+                )
+                result.success(NativeDiagnosticWriter.peek(context, diagnosticSessionId))
+            }
+            "acknowledgeReceiverDiagnostics" -> {
+                val diagnosticSessionId = requireNotNull(
+                    call.argument<String>("diagnosticSessionId"),
+                )
+                val ids = call.argument<List<String>>("diagnosticIds")?.toSet().orEmpty()
+                result.success(
+                    NativeDiagnosticWriter.acknowledge(
+                        context,
+                        diagnosticSessionId,
+                        ids,
+                    ),
+                )
             }
             "acknowledge" -> {
                 val ids = call.argument<List<String>>("eventIds")?.toSet().orEmpty()
@@ -64,7 +89,12 @@ class ActivityTransitionBridgePlugin :
         }
     }
 
-    private fun register(sessionId: String, result: MethodChannel.Result) {
+    private fun register(
+        sessionId: String,
+        diagnosticSessionId: String?,
+        diagnosticDirectoryPath: String?,
+        result: MethodChannel.Result,
+    ) {
         if (
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
             context.checkSelfPermission(Manifest.permission.ACTIVITY_RECOGNITION) !=
@@ -74,7 +104,12 @@ class ActivityTransitionBridgePlugin :
             return
         }
 
-        TransitionQueue.beginSession(context, sessionId)
+        TransitionQueue.beginSession(
+            context,
+            sessionId,
+            diagnosticSessionId,
+            diagnosticDirectoryPath,
+        )
         removeStaleRegistration(sessionId) {
             registerFreshPendingIntent(sessionId, result)
         }

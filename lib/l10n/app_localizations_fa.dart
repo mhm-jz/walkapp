@@ -2375,4 +2375,64 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get transitionBasedDetection => 'تشخیص مبتنی بر تغییر فعالیت';
+
+  @override
+  String get diagnosticReports => 'گزارش‌های آزمایشی';
+
+  @override
+  String get diagnosticReportsDescription =>
+      'جلسه‌های کنترل‌شده ردیابی قدم را بررسی و صادر کنید.';
+
+  @override
+  String get diagnosticNoReports => 'گزارش آزمایشی برای نمایش وجود ندارد.';
+
+  @override
+  String get diagnosticTestMetadata => 'جزئیات جلسه آزمایشی';
+
+  @override
+  String get diagnosticTestName => 'نام آزمایش';
+
+  @override
+  String get diagnosticManualSteps => 'تعداد قدم شمارش‌شده دستی';
+
+  @override
+  String get diagnosticRouteDescription => 'توضیحات مسیر';
+
+  @override
+  String get diagnosticNotes => 'یادداشت‌های آزمایش';
+
+  @override
+  String get diagnosticEditMetadata => 'افزودن یا ویرایش جزئیات آزمایش';
+
+  @override
+  String get diagnosticExportReport => 'خروجی گزارش';
+
+  @override
+  String get diagnosticDeleteSession => 'حذف جلسه آزمایشی';
+
+  @override
+  String get diagnosticClearReports => 'پاک‌کردن گزارش‌ها';
+
+  @override
+  String diagnosticSessionSummary(
+    String mode,
+    int candidates,
+    int accepted,
+    int rejected,
+  ) {
+    return '$mode · $candidates قدم خام · $accepted پذیرفته · $rejected ردشده';
+  }
+
+  @override
+  String diagnosticSessionDetails(
+    String mode,
+    int durationSeconds,
+    int candidates,
+    int accepted,
+    int rejected,
+    int confirmedGained,
+    String manualSteps,
+  ) {
+    return '$mode · $durationSeconds ثانیه · $candidates خام · $accepted پذیرفته · $rejected ردشده · $confirmedGained+ تأیید · دستی $manualSteps';
+  }
 }

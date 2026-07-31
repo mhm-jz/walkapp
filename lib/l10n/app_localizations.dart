@@ -3780,6 +3780,103 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Transition-based detection'**
   String get transitionBasedDetection;
+
+  /// No description provided for @diagnosticReports.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnostic reports'**
+  String get diagnosticReports;
+
+  /// No description provided for @diagnosticReportsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Review and export controlled step-tracking sessions.'**
+  String get diagnosticReportsDescription;
+
+  /// No description provided for @diagnosticNoReports.
+  ///
+  /// In en, this message translates to:
+  /// **'No diagnostic reports are available.'**
+  String get diagnosticNoReports;
+
+  /// No description provided for @diagnosticTestMetadata.
+  ///
+  /// In en, this message translates to:
+  /// **'Test session details'**
+  String get diagnosticTestMetadata;
+
+  /// No description provided for @diagnosticTestName.
+  ///
+  /// In en, this message translates to:
+  /// **'Test name'**
+  String get diagnosticTestName;
+
+  /// No description provided for @diagnosticManualSteps.
+  ///
+  /// In en, this message translates to:
+  /// **'Manually counted steps'**
+  String get diagnosticManualSteps;
+
+  /// No description provided for @diagnosticRouteDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Route description'**
+  String get diagnosticRouteDescription;
+
+  /// No description provided for @diagnosticNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Test notes'**
+  String get diagnosticNotes;
+
+  /// No description provided for @diagnosticEditMetadata.
+  ///
+  /// In en, this message translates to:
+  /// **'Add or edit test details'**
+  String get diagnosticEditMetadata;
+
+  /// No description provided for @diagnosticExportReport.
+  ///
+  /// In en, this message translates to:
+  /// **'Export report'**
+  String get diagnosticExportReport;
+
+  /// No description provided for @diagnosticDeleteSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete diagnostic session'**
+  String get diagnosticDeleteSession;
+
+  /// No description provided for @diagnosticClearReports.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear reports'**
+  String get diagnosticClearReports;
+
+  /// No description provided for @diagnosticSessionSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{mode} · {candidates} candidates · {accepted} accepted · {rejected} rejected'**
+  String diagnosticSessionSummary(
+    String mode,
+    int candidates,
+    int accepted,
+    int rejected,
+  );
+
+  /// No description provided for @diagnosticSessionDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'{mode} · {durationSeconds}s · {candidates} raw · {accepted} accepted · {rejected} rejected · +{confirmedGained} confirmed · manual {manualSteps}'**
+  String diagnosticSessionDetails(
+    String mode,
+    int durationSeconds,
+    int candidates,
+    int accepted,
+    int rejected,
+    int confirmedGained,
+    String manualSteps,
+  );
 }
 
 class _AppLocalizationsDelegate

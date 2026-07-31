@@ -906,5 +906,21 @@
   "campaignCompletedTransaction": "چالش {campaign} تکمیل شد",
   "@campaignCompletedTransaction": {"placeholders": {"campaign": {"type": "String"}}},
   "prototypeRewardTerms": "شرایط پاداش نمونه اعمال می‌شود.",
-  "transitionBasedDetection": "تشخیص مبتنی بر تغییر فعالیت"
+  "transitionBasedDetection": "تشخیص مبتنی بر تغییر فعالیت",
+  "diagnosticReports": "گزارش‌های آزمایشی",
+  "diagnosticReportsDescription": "جلسه‌های کنترل‌شده ردیابی قدم را بررسی و صادر کنید.",
+  "diagnosticNoReports": "گزارش آزمایشی برای نمایش وجود ندارد.",
+  "diagnosticTestMetadata": "جزئیات جلسه آزمایشی",
+  "diagnosticTestName": "نام آزمایش",
+  "diagnosticManualSteps": "تعداد قدم شمارش‌شده دستی",
+  "diagnosticRouteDescription": "توضیحات مسیر",
+  "diagnosticNotes": "یادداشت‌های آزمایش",
+  "diagnosticEditMetadata": "افزودن یا ویرایش جزئیات آزمایش",
+  "diagnosticExportReport": "خروجی گزارش",
+  "diagnosticDeleteSession": "حذف جلسه آزمایشی",
+  "diagnosticClearReports": "پاک‌کردن گزارش‌ها",
+  "diagnosticSessionSummary": "{mode} · {candidates} قدم خام · {accepted} پذیرفته · {rejected} ردشده",
+  "@diagnosticSessionSummary": {"placeholders": {"mode": {"type": "String"}, "candidates": {"type": "int"}, "accepted": {"type": "int"}, "rejected": {"type": "int"}}},
+  "diagnosticSessionDetails": "{mode} · {durationSeconds} ثانیه · {candidates} خام · {accepted} پذیرفته · {rejected} ردشده · {confirmedGained}+ تأیید · دستی {manualSteps}",
+  "@diagnosticSessionDetails": {"placeholders": {"mode": {"type": "String"}, "durationSeconds": {"type": "int"}, "candidates": {"type": "int"}, "accepted": {"type": "int"}, "rejected": {"type": "int"}, "confirmedGained": {"type": "int"}, "manualSteps": {"type": "String"}}}
 }
