@@ -8,6 +8,7 @@ import '../../../core/design_system/components/app_status_chip.dart';
 import '../../../core/design_system/extensions/app_theme_extension.dart';
 import '../../../core/design_system/tokens/app_tokens.dart';
 import '../../../core/preferences/app_settings_controller.dart';
+import '../../../l10n/app_localizations_extension.dart';
 import '../../../core/preferences/personalization_options.dart';
 import '../../step_counter/domain/step_tracking_service.dart';
 import '../../step_counter/presentation/step_counter_controller.dart';
@@ -62,7 +63,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       if (!_controller.canContinue) {
         AppSnackbar.show(
           context,
-          'Choose at least one interest or No preference.',
+          context.l10n.chooseInterestError,
           isError: true,
         );
         return;
@@ -88,7 +89,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
             builder: (context, child) => Column(
               children: <Widget>[
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(
+                  padding: const EdgeInsetsDirectional.fromSTEB(
                     AppSpacing.lg,
                     AppSpacing.sm,
                     AppSpacing.sm,
@@ -99,7 +100,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                       if (_controller.step > 0)
                         AppIconButton(
                           icon: Icons.arrow_back,
-                          tooltip: 'Previous setup step',
+                          tooltip: context.l10n.previousSetupStep,
                           onPressed: _controller.isBusy
                               ? null
                               : _controller.previous,
@@ -108,7 +109,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
                         const SizedBox(width: AppSizes.minTouchTarget),
                       Expanded(
                         child: Semantics(
-                          label: 'Setup step ${_controller.step + 1} of 6',
+                          label: context.l10n.setupStepProgress(
+                            _controller.step + 1,
+                            6,
+                          ),
                           child: LinearProgressIndicator(
                             value: (_controller.step + 1) / 6,
                             minHeight: 8,
@@ -156,8 +160,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
                       constraints: const BoxConstraints(maxWidth: 560),
                       child: AppButton(
                         label: _controller.isLastStep
-                            ? 'Continue to account setup'
-                            : 'Continue',
+                            ? context.l10n.continueToAccountSetup
+                            : context.l10n.continueAction,
                         icon: Icons.arrow_forward,
                         expanded: true,
                         isLoading: _controller.isBusy,
@@ -190,26 +194,24 @@ class _IntroStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) => _StepLayout(
     icon: Icons.directions_walk_rounded,
-    title: 'Walk toward healthier habits',
-    message:
-        'WalkApp keeps personal health progress first. Campaigns are optional, '
-        'and verified walking may unlock useful points or rewards.',
-    child: const AppCard(
+    title: context.l10n.walkTowardHealthierHabits,
+    message: context.l10n.onboardingIntroDescription,
+    child: AppCard(
       child: Column(
         children: <Widget>[
           _Pillar(
             icon: Icons.monitor_heart_outlined,
-            text: 'Track daily walking progress',
+            text: context.l10n.trackDailyProgress,
           ),
           Divider(height: AppSpacing.xl),
           _Pillar(
             icon: Icons.flag_outlined,
-            text: 'Build habits with a personal goal',
+            text: context.l10n.buildHabitsWithGoal,
           ),
           Divider(height: AppSpacing.xl),
           _Pillar(
             icon: Icons.campaign_outlined,
-            text: 'Join optional campaigns when you choose',
+            text: context.l10n.joinOptionalCampaigns,
           ),
         ],
       ),
@@ -224,17 +226,16 @@ class _GoalStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const goals = <(int, String)>[
-      (5000, 'A comfortable starting point'),
-      (7500, 'A balanced everyday goal'),
-      (10000, 'A popular active target'),
-      (12000, 'For already active walkers'),
+    final goals = <(int, String)>[
+      (5000, context.l10n.comfortableStartingPoint),
+      (7500, context.l10n.balancedEverydayGoal),
+      (10000, context.l10n.popularActiveTarget),
+      (12000, context.l10n.activeWalkerGoal),
     ];
     return _StepLayout(
       icon: Icons.flag_outlined,
-      title: 'Choose your daily goal',
-      message:
-          'Choose a goal that feels realistic for you. You can change it later.',
+      title: context.l10n.chooseDailyGoal,
+      message: context.l10n.chooseDailyGoalDescription,
       child: RadioGroup<int>(
         groupValue: controller.selectedGoal,
         onChanged: (value) {
@@ -248,13 +249,13 @@ class _GoalStep extends StatelessWidget {
                 child: AppCard(
                   child: RadioListTile<int>(
                     value: goal.$1,
-                    title: Text('${goal.$1} steps'),
+                    title: Text(context.l10n.stepCount(goal.$1)),
                     subtitle: Text(goal.$2),
                   ),
                 ),
               ),
             AppButton(
-              label: 'Custom goal',
+              label: context.l10n.customGoal,
               variant: AppButtonVariant.outlined,
               onPressed: onCustom,
             ),
@@ -277,9 +278,8 @@ class _InterestsStep extends StatelessWidget {
     ];
     return _StepLayout(
       icon: Icons.interests_outlined,
-      title: 'What interests you?',
-      message:
-          'Interests only help order local prototype content. Nothing is hidden.',
+      title: context.l10n.whatInterestsYou,
+      message: context.l10n.interestsDescription,
       child: Wrap(
         spacing: AppSpacing.sm,
         runSpacing: AppSpacing.sm,
@@ -288,7 +288,7 @@ class _InterestsStep extends StatelessWidget {
             Semantics(
               selected: controller.selectedInterests.contains(value),
               child: FilterChip(
-                label: Text(value),
+                label: Text(_personalizationLabel(context, value)),
                 selected: controller.selectedInterests.contains(value),
                 onSelected: (_) => controller.toggleInterest(value),
               ),
@@ -306,16 +306,17 @@ class _CityStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) => _StepLayout(
     icon: Icons.location_city_outlined,
-    title: 'Choose your city',
-    message:
-        'Your city may later help us highlight locally available campaigns. '
-        'WalkApp does not use GPS for this choice.',
+    title: context.l10n.chooseYourCity,
+    message: context.l10n.citySelectionDescription,
     child: AppDropdownField<String>(
-      label: 'City',
+      label: context.l10n.city,
       value: controller.selectedCity,
       items: <DropdownMenuItem<String>>[
         for (final city in PersonalizationOptions.cities)
-          DropdownMenuItem<String>(value: city, child: Text(city)),
+          DropdownMenuItem<String>(
+            value: city,
+            child: Text(_personalizationLabel(context, city)),
+          ),
       ],
       onChanged: (value) {
         if (value != null) controller.selectCity(value);
@@ -331,18 +332,15 @@ class _PermissionStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) => _StepLayout(
     icon: Icons.privacy_tip_outlined,
-    title: 'Activity access',
-    message:
-        'Activity access helps WalkApp detect walking and validate step progress. '
-        'Background tracking lets active sessions continue with the screen off. '
-        'Continuous GPS is not needed.',
+    title: context.l10n.physicalActivityAccess,
+    message: context.l10n.activityPermissionDescription,
     child: AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           if (controller.permissionStatus != null)
             AppStatusChip(
-              label: _permissionLabel(controller.permissionStatus!),
+              label: _permissionLabel(context, controller.permissionStatus!),
               status:
                   controller.permissionStatus == ActivityAccessStatus.granted
                   ? AppStatus.success
@@ -350,14 +348,14 @@ class _PermissionStep extends StatelessWidget {
             ),
           if (controller.permissionStatus != null)
             const SizedBox(height: AppSpacing.md),
-          Text(_permissionMessage(controller.permissionStatus)),
+          Text(_permissionMessage(context, controller.permissionStatus)),
           const SizedBox(height: AppSpacing.md),
           if (controller.permissionStatus !=
               ActivityAccessStatus.permanentlyDenied)
             AppButton(
               label: controller.permissionStatus == null
-                  ? 'Allow Activity Access'
-                  : 'Retry Activity Access',
+                  ? context.l10n.allowActivityAccess
+                  : context.l10n.retryActivityAccess,
               isLoading: controller.isBusy,
               onPressed: controller.isBusy
                   ? null
@@ -365,12 +363,10 @@ class _PermissionStep extends StatelessWidget {
             ),
           if (controller.permissionStatus ==
               ActivityAccessStatus.permanentlyDenied) ...<Widget>[
-            const Text(
-              'Android: Settings → Apps → WalkApp → Permissions → Physical activity, then allow access.',
-            ),
+            Text(context.l10n.androidPermissionInstructions),
             const SizedBox(height: AppSpacing.md),
             AppButton(
-              label: 'Continue without tracking',
+              label: context.l10n.continueWithoutTracking,
               variant: AppButtonVariant.outlined,
               onPressed: controller.isBusy ? null : controller.next,
             ),
@@ -380,27 +376,27 @@ class _PermissionStep extends StatelessWidget {
     ),
   );
 
-  static String _permissionLabel(ActivityAccessStatus status) =>
-      switch (status) {
-        ActivityAccessStatus.granted => 'Activity access granted',
-        ActivityAccessStatus.denied => 'Activity access not granted',
-        ActivityAccessStatus.permanentlyDenied =>
-          'Enable access in app settings',
-        ActivityAccessStatus.unsupported => 'Activity sensor unavailable',
-      };
+  static String _permissionLabel(
+    BuildContext context,
+    ActivityAccessStatus status,
+  ) => switch (status) {
+    ActivityAccessStatus.granted => context.l10n.activityAccessGranted,
+    ActivityAccessStatus.denied => context.l10n.activityAccessNotGranted,
+    ActivityAccessStatus.permanentlyDenied =>
+      context.l10n.enableAccessInSettings,
+    ActivityAccessStatus.unsupported => context.l10n.activitySensorUnavailable,
+  };
 
   static String _permissionMessage(
+    BuildContext context,
     ActivityAccessStatus? status,
   ) => switch (status) {
-    null => 'Permission is requested only after you choose the action below.',
-    ActivityAccessStatus.granted =>
-      'You can start tracking from Home when you are ready.',
-    ActivityAccessStatus.denied =>
-      'You can continue, but step tracking needs activity access.',
+    null => context.l10n.permissionBeforeRequest,
+    ActivityAccessStatus.granted => context.l10n.trackingReadyDescription,
+    ActivityAccessStatus.denied => context.l10n.trackingNeedsPermission,
     ActivityAccessStatus.permanentlyDenied =>
-      'Open this app’s system settings and enable activity access manually.',
-    ActivityAccessStatus.unsupported =>
-      'This device does not support the prototype activity permission flow.',
+      context.l10n.enableActivityManually,
+    ActivityAccessStatus.unsupported => context.l10n.permissionUnsupported,
   };
 }
 
@@ -411,31 +407,35 @@ class _CompletionStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) => _StepLayout(
     icon: Icons.check_circle_outline,
-    title: 'You’re ready',
-    message:
-        'Health tracking stays independent. Start it from Home whenever you choose.',
+    title: context.l10n.youAreReady,
+    message: context.l10n.completionDescription,
     child: AppCard(
       child: Column(
         children: <Widget>[
           _Summary(
-            label: 'Daily goal',
-            value: '${controller.selectedGoal} steps',
+            label: context.l10n.dailyGoal,
+            value: context.l10n.stepCount(controller.selectedGoal),
           ),
           const Divider(height: AppSpacing.xl),
           _Summary(
-            label: 'Interests',
+            label: context.l10n.interests,
             value: controller.selectedInterests.isEmpty
                 ? PersonalizationOptions.noPreference
-                : controller.selectedInterests.join(', '),
+                : controller.selectedInterests
+                      .map((item) => _personalizationLabel(context, item))
+                      .join('، '),
           ),
           const Divider(height: AppSpacing.xl),
-          _Summary(label: 'City', value: controller.selectedCity),
+          _Summary(
+            label: context.l10n.city,
+            value: _personalizationLabel(context, controller.selectedCity),
+          ),
           const Divider(height: AppSpacing.xl),
           _Summary(
-            label: 'Activity access',
+            label: context.l10n.physicalActivityAccess,
             value: controller.permissionStatus == ActivityAccessStatus.granted
-                ? 'Granted'
-                : 'Not granted',
+                ? context.l10n.granted
+                : context.l10n.notGranted,
           ),
         ],
       ),
@@ -479,6 +479,24 @@ class _StepLayout extends StatelessWidget {
     ],
   );
 }
+
+String _personalizationLabel(BuildContext context, String value) =>
+    switch (value) {
+      'Clothing' => context.l10n.clothing,
+      'Sports' => context.l10n.sports,
+      'Food' => context.l10n.food,
+      'Wellness' => context.l10n.wellness,
+      'No preference' => context.l10n.noPreference,
+      'Tehran' => context.l10n.tehran,
+      'Karaj' => context.l10n.karaj,
+      'Mashhad' => context.l10n.mashhad,
+      'Isfahan' => context.l10n.isfahan,
+      'Shiraz' => context.l10n.shiraz,
+      'Tabriz' => context.l10n.tabriz,
+      'Other' => context.l10n.other,
+      'Prefer not to say' => context.l10n.preferNotToSay,
+      _ => value,
+    };
 
 class _Pillar extends StatelessWidget {
   const _Pillar({required this.icon, required this.text});

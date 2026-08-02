@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../../../core/diagnostics/step_diagnostic_event.dart';
 import '../data/step_snapshot.dart';
 import '../domain/step_snapshot_store.dart';
 import '../domain/step_tracking_service.dart';
@@ -62,6 +63,22 @@ final class StepCounterController extends ChangeNotifier {
     _uiError = null;
 
     try {
+      final recorder = trackingService;
+      if (recorder is StepDiagnosticRecorder) {
+        await (recorder as StepDiagnosticRecorder).prepareDiagnosticSession({
+          'confirmedStepsBeforeStart': _snapshot.confirmedSteps,
+          'provisionalStepsBeforeStart': _snapshot.provisionalSteps,
+          'displayedStepsBeforeStart': _snapshot.displayedSteps,
+          'persistedConfirmedValue': _snapshot.confirmedSteps,
+          'persistedTrackingState': _snapshot.isTracking,
+          'serviceRunningState': await trackingService.isRunning(),
+          'pedometerSubscriptionActive': false,
+          'samplingSubscriptionActive': false,
+          'currentActivityType': _snapshot.activity.storageName,
+          'currentConfidence': _snapshot.confidence.storageName,
+          'currentEvidenceReceivedElapsedRealtimeMs': null,
+        });
+      }
       await trackingService.start();
 
       _snapshot = _snapshot.copyWith(
@@ -190,6 +207,7 @@ final class StepCounterController extends ChangeNotifier {
         (key, value) => MapEntry(key.toString(), value),
       ),
     );
+    _record(StepDiagnosticEventType.snapshotReceived);
 
     logStepDiagnostic(
       '[STEP_UI_RECEIVE] confirmedSteps=${_snapshot.confirmedSteps} '
@@ -199,6 +217,7 @@ final class StepCounterController extends ChangeNotifier {
 
     _uiError = null;
     notifyListeners();
+    _record(StepDiagnosticEventType.uiUpdated);
     logStepDiagnostic(
       '[STEP_UI_NOTIFY] confirmed=${_snapshot.confirmedSteps} '
       'provisional=${_snapshot.provisionalSteps} '
@@ -211,6 +230,23 @@ final class StepCounterController extends ChangeNotifier {
 
     if (!_disposed) {
       notifyListeners();
+    }
+  }
+
+  void _record(String type) {
+    final recorder = trackingService;
+    if (recorder is StepDiagnosticRecorder) {
+      (recorder as StepDiagnosticRecorder).recordDiagnostic(
+        type,
+        payload: {
+          'confirmedSteps': _snapshot.confirmedSteps,
+          'provisionalSteps': _snapshot.provisionalSteps,
+          'displayedSteps': _snapshot.displayedSteps,
+          'activityType': _snapshot.activity.storageName,
+          'confidence': _snapshot.confidence.storageName,
+          'isTracking': _snapshot.isTracking,
+        },
+      );
     }
   }
 

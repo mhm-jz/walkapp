@@ -6,6 +6,12 @@ abstract interface class ActivityAccessRequester {
   Future<ActivityAccessStatus> requestActivityAccess();
 }
 
+abstract interface class StepDiagnosticRecorder {
+  String? get diagnosticSessionId;
+  Future<void> prepareDiagnosticSession(Map<String, Object?> startState);
+  void recordDiagnostic(String type, {Map<String, Object?> payload});
+}
+
 abstract interface class StepTrackingService {
   void initialize();
 

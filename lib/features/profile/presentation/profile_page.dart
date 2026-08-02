@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:walkingapp/l10n/app_localizations_extension.dart';
 
 import '../../../core/design_system/components/app_button.dart';
 import '../../../core/design_system/components/app_card.dart';
@@ -65,11 +66,11 @@ class _ProfilePageState extends State<ProfilePage> {
     FocusManager.instance.primaryFocus?.unfocus();
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
-    final nameError = name.isEmpty ? 'Enter your full name' : null;
+    final nameError = name.isEmpty ? context.l10n.enterFullName : null;
     final emailError = email.isEmpty
-        ? 'Enter your email address'
+        ? context.l10n.enterEmailAddress
         : !_looksLikeEmail(email)
-        ? 'Enter a valid email address'
+        ? context.l10n.enterValidEmailAddress
         : null;
     setState(() {
       _nameError = nameError;
@@ -83,11 +84,7 @@ class _ProfilePageState extends State<ProfilePage> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _isSaving = false);
-      AppSnackbar.show(
-        context,
-        'Profile could not be saved. Please try again.',
-        isError: true,
-      );
+      AppSnackbar.show(context, context.l10n.profileSaveError, isError: true);
       return;
     }
     if (!mounted) return;
@@ -95,7 +92,7 @@ class _ProfilePageState extends State<ProfilePage> {
       _isSaving = false;
       _isEditing = false;
     });
-    AppSnackbar.show(context, 'Profile saved');
+    AppSnackbar.show(context, context.l10n.profileSaved);
   }
 
   bool _looksLikeEmail(String value) {
@@ -111,7 +108,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
     if (goal == null || !mounted) return;
     await widget.settingsController.setDailyGoal(goal);
-    if (mounted) AppSnackbar.show(context, 'Daily goal updated');
+    if (mounted) AppSnackbar.show(context, context.l10n.dailyGoalUpdated);
   }
 
   Future<void> _setCity(String? city) async {
@@ -120,7 +117,7 @@ class _ProfilePageState extends State<ProfilePage> {
       rewardInterests: widget.settingsController.rewardInterests,
       selectedCity: city,
     );
-    if (mounted) AppSnackbar.show(context, 'City updated');
+    if (mounted) AppSnackbar.show(context, context.l10n.cityUpdated);
   }
 
   Future<void> _toggleInterest(String value) async {
@@ -138,13 +135,18 @@ class _ProfilePageState extends State<ProfilePage> {
       rewardInterests: selected.toList(growable: false),
       selectedCity: widget.settingsController.selectedCity,
     );
-    if (mounted) AppSnackbar.show(context, 'Reward interests updated');
+    if (mounted) {
+      AppSnackbar.show(context, context.l10n.rewardInterestsUpdated);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(leading: const BackButton(), title: const Text('Profile')),
+      appBar: AppBar(
+        leading: const BackButton(),
+        title: Text(context.l10n.profile),
+      ),
       body: SafeArea(
         top: false,
         child: GestureDetector(
@@ -152,7 +154,7 @@ class _ProfilePageState extends State<ProfilePage> {
           onTap: FocusManager.instance.primaryFocus?.unfocus,
           child: SingleChildScrollView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.fromLTRB(
+            padding: const EdgeInsetsDirectional.fromSTEB(
               AppSpacing.lg,
               AppSpacing.lg,
               AppSpacing.lg,
@@ -175,16 +177,16 @@ class _ProfilePageState extends State<ProfilePage> {
                     const SizedBox(height: AppSpacing.lg),
                     Text(
                       _isEditing
-                          ? 'Your account details'
+                          ? context.l10n.profileDetails
                           : widget.settingsController.profileName.isEmpty
-                          ? 'Complete your profile'
+                          ? context.l10n.completeProfile
                           : widget.settingsController.profileName,
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      'Stored privately with your local app preferences.',
+                      context.l10n.profileStorageDescription,
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: context.appTheme.textSecondary,
@@ -201,7 +203,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                   children: <Widget>[
                                     AppTextField(
                                       controller: _nameController,
-                                      label: 'Full name',
+                                      label: context.l10n.fullName,
                                       errorText: _nameError,
                                       keyboardType: TextInputType.name,
                                       textCapitalization:
@@ -223,7 +225,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                     const SizedBox(height: AppSpacing.lg),
                                     AppTextField(
                                       controller: _emailController,
-                                      label: 'Email address',
+                                      label: context.l10n.emailAddress,
                                       errorText: _emailError,
                                       keyboardType: TextInputType.emailAddress,
                                       textInputAction: TextInputAction.done,
@@ -249,7 +251,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                                 ).scale(1) >
                                                 1.3;
                                         final cancel = AppButton(
-                                          label: 'Cancel',
+                                          label: context.l10n.cancel,
                                           expanded: stack,
                                           variant: AppButtonVariant.outlined,
                                           onPressed: _isSaving
@@ -257,7 +259,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                               : _cancelEditing,
                                         );
                                         final save = AppButton(
-                                          label: 'Save',
+                                          label: context.l10n.save,
                                           icon: Icons.check,
                                           expanded: stack,
                                           isLoading: _isSaving,
@@ -306,26 +308,26 @@ class _ProfilePageState extends State<ProfilePage> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: <Widget>[
                             Text(
-                              'Personalization',
+                              context.l10n.personalization,
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
                             const SizedBox(height: AppSpacing.md),
                             AppDropdownField<String>(
-                              label: 'City',
+                              label: context.l10n.city,
                               value: widget.settingsController.selectedCity,
                               items: <DropdownMenuItem<String>>[
                                 for (final city
                                     in PersonalizationOptions.cities)
                                   DropdownMenuItem<String>(
                                     value: city,
-                                    child: Text(city),
+                                    child: Text(_optionLabel(context, city)),
                                   ),
                               ],
                               onChanged: _setCity,
                             ),
                             const SizedBox(height: AppSpacing.lg),
                             Text(
-                              'Reward interests',
+                              context.l10n.rewardInterests,
                               style: Theme.of(context).textTheme.titleSmall,
                             ),
                             const SizedBox(height: AppSpacing.sm),
@@ -338,7 +340,9 @@ class _ProfilePageState extends State<ProfilePage> {
                                   PersonalizationOptions.noPreference,
                                 ])
                                   FilterChip(
-                                    label: Text(interest),
+                                    label: Text(
+                                      _optionLabel(context, interest),
+                                    ),
                                     selected: widget
                                         .settingsController
                                         .rewardInterests
@@ -353,13 +357,14 @@ class _ProfilePageState extends State<ProfilePage> {
                               children: <Widget>[
                                 Expanded(
                                   child: Text(
-                                    'Daily goal: '
-                                    '${widget.settingsController.dailyGoal} steps',
+                                    context.l10n.dailyGoalWithSteps(
+                                      widget.settingsController.dailyGoal,
+                                    ),
                                   ),
                                 ),
                                 AppIconButton(
                                   icon: Icons.edit_outlined,
-                                  tooltip: 'Edit daily goal',
+                                  tooltip: context.l10n.editDailyGoal,
                                   onPressed: _editGoal,
                                 ),
                               ],
@@ -377,6 +382,23 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
+
+  String _optionLabel(BuildContext context, String value) => switch (value) {
+    'Clothing' => context.l10n.clothing,
+    'Sports' => context.l10n.sports,
+    'Food' => context.l10n.food,
+    'Wellness' => context.l10n.wellness,
+    'No preference' => context.l10n.noPreference,
+    'Tehran' => context.l10n.tehran,
+    'Karaj' => context.l10n.karaj,
+    'Mashhad' => context.l10n.mashhad,
+    'Isfahan' => context.l10n.isfahan,
+    'Shiraz' => context.l10n.shiraz,
+    'Tabriz' => context.l10n.tabriz,
+    'Other' => context.l10n.other,
+    'Prefer not to say' => context.l10n.preferNotToSay,
+    _ => value,
+  };
 }
 
 class _ProfileDetails extends StatelessWidget {
@@ -397,18 +419,18 @@ class _ProfileDetails extends StatelessWidget {
       children: <Widget>[
         _DetailRow(
           icon: Icons.person_outline,
-          label: 'Full name',
-          value: fullName.isEmpty ? 'Not added' : fullName,
+          label: context.l10n.fullName,
+          value: fullName.isEmpty ? context.l10n.notAdded : fullName,
         ),
         const Divider(height: AppSpacing.xl),
         _DetailRow(
           icon: Icons.mail_outline,
-          label: 'Email address',
-          value: email.isEmpty ? 'Not added' : email,
+          label: context.l10n.emailAddress,
+          value: email.isEmpty ? context.l10n.notAdded : email,
         ),
         const SizedBox(height: AppSpacing.xl),
         AppButton(
-          label: 'Edit profile',
+          label: context.l10n.editProfile,
           icon: Icons.edit_outlined,
           expanded: true,
           onPressed: onEdit,

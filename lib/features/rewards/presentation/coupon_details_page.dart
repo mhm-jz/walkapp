@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:walkingapp/l10n/app_localizations_extension.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/design_system/components/app_button.dart';
@@ -25,24 +26,24 @@ class CouponDetailsPage extends StatelessWidget {
 
   Future<void> _copy(BuildContext context, ClaimedReward reward) async {
     await Clipboard.setData(ClipboardData(text: reward.couponCode));
-    if (context.mounted) AppSnackbar.show(context, 'Prototype coupon copied');
+    if (context.mounted) {
+      AppSnackbar.show(context, context.l10n.prototypeCouponCopied);
+    }
   }
 
   Future<void> _markUsed(BuildContext context, ClaimedReward reward) async {
     final confirmed = await AppDialog.show<bool>(
       context,
-      title: 'Mark coupon as used?',
-      content: const Text(
-        'This is a debug-only local simulation. No merchant will verify this action.',
-      ),
+      title: context.l10n.markCouponUsedQuestion,
+      content: Text(context.l10n.couponUseLocalExplanation),
       actions: <Widget>[
         AppButton(
-          label: 'Cancel',
+          label: context.l10n.cancel,
           variant: AppButtonVariant.text,
           onPressed: () => Navigator.of(context).pop(false),
         ),
         AppButton(
-          label: 'Mark as used',
+          label: context.l10n.markAsUsed,
           onPressed: () => Navigator.of(context).pop(true),
         ),
       ],
@@ -53,8 +54,8 @@ class CouponDetailsPage extends StatelessWidget {
       AppSnackbar.show(
         context,
         updated
-            ? 'Coupon marked as used locally'
-            : 'Coupon could not be updated',
+            ? context.l10n.couponMarkedUsed
+            : context.l10n.couponUpdateError,
         isError: !updated,
       );
     }
@@ -63,16 +64,14 @@ class CouponDetailsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Coupon Details')),
+      appBar: AppBar(title: Text(context.l10n.couponDetails)),
       body: AnimatedBuilder(
         animation: controller,
         builder: (context, child) {
           final reward = controller.claimedRewardById(claimedRewardId);
           if (reward == null) {
-            return const Center(
-              child: AppErrorView(
-                message: 'This saved reward is not available locally.',
-              ),
+            return Center(
+              child: AppErrorView(message: context.l10n.savedRewardUnavailable),
             );
           }
           final status = reward.statusAt(DateTime.now());
@@ -100,8 +99,8 @@ class CouponDetailsPage extends StatelessWidget {
                       color: Theme.of(context).colorScheme.primaryContainer,
                       child: Column(
                         children: <Widget>[
-                          const AppStatusChip(
-                            label: 'Prototype coupon',
+                          AppStatusChip(
+                            label: context.l10n.prototypeCoupon,
                             status: AppStatus.info,
                             icon: Icons.science_outlined,
                           ),
@@ -114,7 +113,7 @@ class CouponDetailsPage extends StatelessWidget {
                           ),
                           const SizedBox(height: AppSpacing.md),
                           AppButton(
-                            label: 'Copy code',
+                            label: context.l10n.copyCode,
                             icon: Icons.copy,
                             onPressed: status == CouponStatus.available
                                 ? () => _copy(context, reward)
@@ -129,32 +128,32 @@ class CouponDetailsPage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: <Widget>[
                           _Fact(
-                            label: 'Status',
-                            value: couponStatusLabel(status),
+                            label: context.l10n.status,
+                            value: couponStatusLabel(context.l10n, status),
                           ),
                           _Fact(
-                            label: 'Claimed',
-                            value: rewardDate(reward.claimedAt),
+                            label: context.l10n.claimed,
+                            value: rewardDate(context.l10n, reward.claimedAt),
                           ),
                           _Fact(
-                            label: 'Expires',
-                            value: rewardDate(reward.expiresAt),
+                            label: context.l10n.expiration,
+                            value: rewardDate(context.l10n, reward.expiresAt),
                           ),
                           _Fact(
-                            label: 'Where to use',
+                            label: context.l10n.whereToUse,
                             value: reward.usageChannel,
                           ),
                           _Fact(
-                            label: 'Minimum purchase',
+                            label: context.l10n.minimumPurchase,
                             value: reward.minimumPurchaseDescription,
                           ),
                           _Fact(
-                            label: 'Source',
+                            label: context.l10n.source,
                             value:
                                 reward.sourceType ==
                                     ClaimedRewardSourceType.campaign
-                                ? 'Campaign reward'
-                                : 'Points redemption',
+                                ? context.l10n.campaignRewardSource
+                                : context.l10n.pointsRedemptionSource,
                           ),
                         ],
                       ),
@@ -165,7 +164,7 @@ class CouponDetailsPage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: <Widget>[
                           Text(
-                            'Terms',
+                            context.l10n.terms,
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           const SizedBox(height: AppSpacing.sm),
@@ -174,32 +173,29 @@ class CouponDetailsPage extends StatelessWidget {
                               padding: const EdgeInsets.only(
                                 bottom: AppSpacing.sm,
                               ),
-                              child: Text('• $term'),
+                              child: Text(
+                                '• ${localizedRewardTerm(context.l10n, term)}',
+                              ),
                             ),
                         ],
                       ),
                     ),
                     const SizedBox(height: AppSpacing.lg),
-                    const AppCard(
-                      child: Text(
-                        'This locally generated code is for MVP demonstration '
-                        'only and cannot be validated by a real merchant.',
-                      ),
-                    ),
+                    AppCard(child: Text(context.l10n.couponCodeDisclaimer)),
                     if (kDebugMode &&
                         status == CouponStatus.available) ...<Widget>[
                       const SizedBox(height: AppSpacing.lg),
-                      const Align(
-                        alignment: Alignment.centerLeft,
+                      Align(
+                        alignment: AlignmentDirectional.centerStart,
                         child: AppStatusChip(
-                          label: 'Debug simulation',
+                          label: context.l10n.debugSimulation,
                           status: AppStatus.warning,
                           icon: Icons.developer_mode,
                         ),
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       AppButton(
-                        label: 'Mark as used',
+                        label: context.l10n.markAsUsed,
                         variant: AppButtonVariant.outlined,
                         expanded: true,
                         onPressed: controller.isSaving

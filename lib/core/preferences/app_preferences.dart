@@ -11,6 +11,7 @@ final class AppPreferences {
   static const _profileNameKey = 'profile_name';
   static const _profileEmailKey = 'profile_email';
   static const _onboardingCompletedKey = 'onboarding_completed';
+  static const _authenticatedKey = 'authenticated';
   static const _rewardInterestsKey = 'reward_interests';
   static const _selectedCityKey = 'selected_city';
   static const _dailyReminderEnabledKey = 'in_app_daily_reminder_enabled';
@@ -18,6 +19,7 @@ final class AppPreferences {
   static const _goalCompletionEnabledKey = 'in_app_goal_completion_enabled';
   static const _campaignUpdatesEnabledKey = 'in_app_campaign_updates_enabled';
   static const _rewardUpdatesEnabledKey = 'in_app_reward_updates_enabled';
+  static const selectedLanguageCodeKey = 'selected_language_code';
   static const defaultDailyGoal = 10000;
 
   final Box<dynamic> _box;
@@ -55,6 +57,8 @@ final class AppPreferences {
         _box.containsKey(_profileEmailKey);
   }
 
+  bool get isAuthenticated => _box.get(_authenticatedKey) == true;
+
   List<String> get rewardInterests {
     final raw = _box.get(_rewardInterestsKey);
     if (raw is! List) return const <String>[];
@@ -85,6 +89,11 @@ final class AppPreferences {
       ? _box.get(_rewardUpdatesEnabledKey) as bool
       : true;
 
+  String get selectedLanguageCode {
+    final value = _box.get(selectedLanguageCodeKey)?.toString();
+    return value == 'en' || value == 'fa' ? value! : 'fa';
+  }
+
   Future<void> setThemeMode(ThemeMode value) =>
       _box.put(_themeModeKey, value.name);
 
@@ -109,6 +118,9 @@ final class AppPreferences {
   Future<void> setOnboardingCompleted(bool value) =>
       _box.put(_onboardingCompletedKey, value);
 
+  Future<void> setAuthenticated(bool value) =>
+      _box.put(_authenticatedKey, value);
+
   Future<void> setInAppDailyGoalReminder({
     required bool enabled,
     required int? timeMinutes,
@@ -123,4 +135,7 @@ final class AppPreferences {
       _box.put(_campaignUpdatesEnabledKey, value);
   Future<void> setInAppRewardUpdatesEnabled(bool value) =>
       _box.put(_rewardUpdatesEnabledKey, value);
+
+  Future<void> setSelectedLanguageCode(String value) =>
+      _box.put(selectedLanguageCodeKey, value == 'en' ? 'en' : 'fa');
 }

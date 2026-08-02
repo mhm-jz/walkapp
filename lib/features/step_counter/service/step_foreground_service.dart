@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter_activity_recognition/flutter_activity_recognition.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:path_provider/path_provider.dart';
+import '../../../core/diagnostics/step_diagnostic_event.dart';
+import '../../../core/diagnostics/step_diagnostic_logger.dart';
 
 import '../data/step_local_store.dart';
 import '../domain/step_tracking_service.dart';
@@ -14,10 +16,40 @@ void startStepTrackingCallback() {
 }
 
 final class StepForegroundService
-    implements StepTrackingService, ActivityAccessRequester {
+    implements
+        StepTrackingService,
+        ActivityAccessRequester,
+        StepDiagnosticRecorder {
   StepForegroundService();
 
   bool _initialized = false;
+  StepDiagnosticLogger? _diagnostics;
+  @override
+  String? get diagnosticSessionId => _diagnostics?.sessionId;
+
+  @override
+  Future<void> prepareDiagnosticSession(Map<String, Object?> startState) async {
+    final directory = await getApplicationSupportDirectory();
+    _diagnostics = await StepDiagnosticLogger.create(
+      supportPath: directory.path,
+      source: 'main',
+      createSession: true,
+    );
+    _diagnostics?.record(
+      StepDiagnosticEventType.sessionCreated,
+      payload: startState,
+    );
+    _diagnostics?.record(
+      StepDiagnosticEventType.trackingStartRequested,
+      payload: startState,
+    );
+  }
+
+  @override
+  void recordDiagnostic(
+    String type, {
+    Map<String, Object?> payload = const {},
+  }) => _diagnostics?.record(type, payload: payload);
 
   @override
   void initialize() {
@@ -87,6 +119,17 @@ final class StepForegroundService
     if (!pathSaved) {
       throw StateError('Could not save the Hive path for the service.');
     }
+    final diagnosticId = _diagnostics?.sessionId;
+    if (diagnosticId != null) {
+      await FlutterForegroundTask.saveData(
+        key: StepLocalStore.taskDiagnosticSessionIdKey,
+        value: diagnosticId,
+      );
+      await FlutterForegroundTask.saveData(
+        key: StepLocalStore.taskDiagnosticSessionStartElapsedMsKey,
+        value: _diagnostics!.sessionStartedElapsedRealtimeMs,
+      );
+    }
 
     final result = await FlutterForegroundTask.startService(
       serviceId: 1001,
@@ -105,12 +148,14 @@ final class StepForegroundService
     if (result is ServiceRequestFailure) {
       throw StateError('Foreground service could not start: ${result.error}');
     }
+    _diagnostics?.record(StepDiagnosticEventType.trackingStarted, flush: true);
   }
 
   @override
   Future<void> stop() async {
     if (!await isRunning()) return;
 
+    _diagnostics?.record(StepDiagnosticEventType.trackingStopRequested);
     FlutterForegroundTask.sendDataToTask(<String, dynamic>{
       'command': 'stop_tracking',
       'reason': 'user',
@@ -121,6 +166,9 @@ final class StepForegroundService
       await Future<void>.delayed(const Duration(milliseconds: 100));
 
       if (!await isRunning()) {
+        _diagnostics?.record(StepDiagnosticEventType.trackingStopped);
+        await _diagnostics?.close();
+        _diagnostics = null;
         return;
       }
     }
@@ -176,6 +224,13 @@ final class StepForegroundService
 
   Future<void> _ensurePermissions() async {
     final activityPermission = await requestActivityAccess();
+    _diagnostics?.record(
+      StepDiagnosticEventType.permissionState,
+      payload: {
+        'permission': 'ACTIVITY_RECOGNITION',
+        'state': activityPermission.name,
+      },
+    );
     if (activityPermission == ActivityAccessStatus.permanentlyDenied) {
       throw StateError(
         'Activity Recognition permission is permanently denied.',

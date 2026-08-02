@@ -6,6 +6,7 @@ import '../../../core/design_system/components/app_selection.dart';
 import '../../../core/design_system/extensions/app_theme_extension.dart';
 import '../../../core/design_system/tokens/app_tokens.dart';
 import '../../../core/preferences/app_settings_controller.dart';
+import '../../../l10n/app_localizations_extension.dart';
 import 'auth_form_controller.dart';
 import 'widgets/auth_brand_header.dart';
 import 'widgets/auth_form_container.dart';
@@ -22,7 +23,7 @@ class RegisterPage extends StatefulWidget {
   });
 
   final AppSettingsController settingsController;
-  final VoidCallback onAuthenticated;
+  final Future<void> Function() onAuthenticated;
   final VoidCallback onLogin;
   final VoidCallback onBack;
 
@@ -50,12 +51,13 @@ class _RegisterPageState extends State<RegisterPage> {
   Future<void> _submit() async {
     FocusManager.instance.primaryFocus?.unfocus();
     final success = await _formController.submit(
+      l10n: context.l10n,
       fullName: _nameController.text,
       email: _emailController.text,
       password: _passwordController.text,
       confirmation: _confirmationController.text,
     );
-    if (success && mounted) widget.onAuthenticated();
+    if (success && mounted) await widget.onAuthenticated();
   }
 
   @override
@@ -63,15 +65,15 @@ class _RegisterPageState extends State<RegisterPage> {
     return AuthPageLayout(
       backAction: AppIconButton(
         icon: Icons.arrow_back_rounded,
-        tooltip: 'Back',
+        tooltip: context.l10n.back,
         onPressed: _formController.isLoading ? null : widget.onBack,
       ),
       themeAction: AuthThemeAction(
         settingsController: widget.settingsController,
       ),
-      header: const AuthBrandHeader(
-        title: 'Create your account',
-        message: 'Start building a healthier daily routine.',
+      header: AuthBrandHeader(
+        title: context.l10n.createYourAccount,
+        message: context.l10n.registerWelcomeMessage,
       ),
       form: AuthFormContainer(
         child: AnimatedBuilder(
@@ -84,8 +86,8 @@ class _RegisterPageState extends State<RegisterPage> {
                 const SizedBox(height: AppSpacing.lg),
                 AppTextField(
                   controller: _nameController,
-                  label: 'Full name',
-                  hint: 'Your name',
+                  label: context.l10n.fullName,
+                  hint: context.l10n.yourName,
                   errorText: _formController.errorFor('name'),
                   keyboardType: TextInputType.name,
                   prefixIcon: Icons.person_outline,
@@ -98,10 +100,11 @@ class _RegisterPageState extends State<RegisterPage> {
                 const SizedBox(height: AppSpacing.lg),
                 AppTextField(
                   controller: _emailController,
-                  label: 'Email address',
-                  hint: 'you@example.com',
+                  label: context.l10n.emailAddress,
+                  hint: context.l10n.emailExample,
                   errorText: _formController.errorFor('email'),
                   keyboardType: TextInputType.emailAddress,
+                  textDirection: TextDirection.ltr,
                   prefixIcon: Icons.mail_outline,
                   textInputAction: TextInputAction.next,
                   autofillHints: const <String>[AutofillHints.email],
@@ -111,8 +114,8 @@ class _RegisterPageState extends State<RegisterPage> {
                 const SizedBox(height: AppSpacing.lg),
                 AppTextField(
                   controller: _passwordController,
-                  label: 'Password',
-                  hint: 'At least 8 characters',
+                  label: context.l10n.password,
+                  hint: context.l10n.minimumEightCharacters,
                   errorText: _formController.errorFor('password'),
                   prefixIcon: Icons.lock_outline,
                   suffixIcon: PasswordVisibilityButton(
@@ -120,6 +123,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     onPressed: _formController.togglePasswordVisibility,
                   ),
                   obscureText: _formController.obscurePassword,
+                  textDirection: TextDirection.ltr,
                   textInputAction: TextInputAction.next,
                   autofillHints: const <String>[AutofillHints.newPassword],
                   enabled: !_formController.isLoading,
@@ -132,7 +136,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 const SizedBox(height: AppSpacing.lg),
                 AppTextField(
                   controller: _confirmationController,
-                  label: 'Confirm password',
+                  label: context.l10n.confirmPassword,
                   errorText: _formController.errorFor('confirmation'),
                   prefixIcon: Icons.lock_reset_outlined,
                   suffixIcon: PasswordVisibilityButton(
@@ -140,6 +144,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     onPressed: _formController.toggleConfirmationVisibility,
                   ),
                   obscureText: _formController.obscureConfirmation,
+                  textDirection: TextDirection.ltr,
                   textInputAction: TextInputAction.done,
                   autofillHints: const <String>[AutofillHints.newPassword],
                   enabled: !_formController.isLoading,
@@ -153,15 +158,15 @@ class _RegisterPageState extends State<RegisterPage> {
                       ? null
                       : (value) =>
                             _formController.setAcceptTerms(value ?? false),
-                  label: 'I accept the Terms of Use and Privacy Policy',
+                  label: context.l10n.acceptTermsAndPrivacy,
                 ),
                 AnimatedSize(
                   duration: AppDurations.fast,
                   child: _formController.errorFor('terms') == null
                       ? const SizedBox.shrink()
                       : Padding(
-                          padding: const EdgeInsets.only(
-                            left: AppSpacing.md,
+                          padding: const EdgeInsetsDirectional.only(
+                            start: AppSpacing.md,
                             bottom: AppSpacing.sm,
                           ),
                           child: Text(
@@ -175,7 +180,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 AppButton(
-                  label: 'Create account',
+                  label: context.l10n.register,
                   icon: Icons.arrow_forward_rounded,
                   expanded: true,
                   isLoading: _formController.isLoading,
@@ -187,12 +192,12 @@ class _RegisterPageState extends State<RegisterPage> {
                   children: <Widget>[
                     Flexible(
                       child: Text(
-                        'Already have an account?',
+                        context.l10n.alreadyHaveAccount,
                         style: TextStyle(color: context.appTheme.textSecondary),
                       ),
                     ),
                     AppButton(
-                      label: 'Log in',
+                      label: context.l10n.login,
                       variant: AppButtonVariant.text,
                       onPressed: _formController.isLoading
                           ? null

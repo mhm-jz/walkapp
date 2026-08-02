@@ -13,6 +13,9 @@ final class StepLocalStore implements StepSnapshotStore {
 
   /// Shared keys used by flutter_foreground_task.
   static const String taskHivePathKey = 'step_hive_path';
+  static const String taskDiagnosticSessionIdKey = 'step_diagnostic_session_id';
+  static const String taskDiagnosticSessionStartElapsedMsKey =
+      'step_diagnostic_session_start_elapsed_ms';
 
   final String directoryPath;
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:walkingapp/l10n/app_localizations_extension.dart';
 
 import '../../../core/design_system/components/app_button.dart';
 import '../../../core/design_system/components/app_feedback.dart';
@@ -27,18 +28,16 @@ class AccountMenu extends StatelessWidget {
   Future<void> _confirmLogout(BuildContext context) async {
     final confirmed = await AppDialog.show<bool>(
       context,
-      title: 'Log out?',
-      content: const Text(
-        'You’ll return to Login. Your steps, goals, theme, and profile will stay on this device.',
-      ),
+      title: context.l10n.logoutQuestion,
+      content: Text(context.l10n.accountLogoutDescription),
       actions: <Widget>[
         AppButton(
-          label: 'Cancel',
+          label: context.l10n.cancel,
           variant: AppButtonVariant.text,
           onPressed: () => Navigator.of(context).pop(false),
         ),
         AppButton(
-          label: 'Log out',
+          label: context.l10n.logout,
           variant: AppButtonVariant.destructive,
           onPressed: () => Navigator.of(context).pop(true),
         ),
@@ -54,7 +53,7 @@ class AccountMenu extends StatelessWidget {
         selectedIndex: null,
         children: <Widget>[
           Padding(
-            padding: const EdgeInsets.fromLTRB(
+            padding: const EdgeInsetsDirectional.fromSTEB(
               AppSpacing.xl,
               AppSpacing.xl,
               AppSpacing.xl,
@@ -75,7 +74,7 @@ class AccountMenu extends StatelessWidget {
                       children: <Widget>[
                         Text(
                           settingsController.profileName.isEmpty
-                              ? 'Your profile'
+                              ? context.l10n.yourProfile
                               : settingsController.profileName,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -84,7 +83,7 @@ class AccountMenu extends StatelessWidget {
                         const SizedBox(height: AppSpacing.xs),
                         Text(
                           settingsController.profileEmail.isEmpty
-                              ? 'Add your name and email'
+                              ? context.l10n.addNameAndEmail
                               : settingsController.profileEmail,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -102,22 +101,22 @@ class AccountMenu extends StatelessWidget {
           NavigationDrawerDestination(
             icon: const Icon(Icons.person_outline),
             selectedIcon: const Icon(Icons.person),
-            label: const Text('Profile'),
+            label: Text(context.l10n.profile),
           ),
           NavigationDrawerDestination(
             icon: const Icon(Icons.emoji_events_outlined),
             selectedIcon: const Icon(Icons.emoji_events),
-            label: const Text('Achievements'),
+            label: Text(context.l10n.achievements),
           ),
           NavigationDrawerDestination(
             icon: const Icon(Icons.settings_outlined),
             selectedIcon: const Icon(Icons.settings),
-            label: const Text('Settings'),
+            label: Text(context.l10n.settings),
           ),
           NavigationDrawerDestination(
             icon: const Icon(Icons.info_outline),
             selectedIcon: const Icon(Icons.info),
-            label: const Text('About'),
+            label: Text(context.l10n.about),
           ),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
@@ -126,7 +125,7 @@ class AccountMenu extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.all(AppSpacing.lg),
             child: AppButton(
-              label: 'Log out',
+              label: context.l10n.logout,
               icon: Icons.logout,
               variant: AppButtonVariant.destructive,
               expanded: true,

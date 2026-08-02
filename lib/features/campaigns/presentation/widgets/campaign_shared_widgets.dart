@@ -4,6 +4,7 @@ import '../../../../core/design_system/components/app_card.dart';
 import '../../../../core/design_system/components/app_status_chip.dart';
 import '../../../../core/design_system/extensions/app_theme_extension.dart';
 import '../../../../core/design_system/tokens/app_tokens.dart';
+import '../../../../l10n/app_localizations_extension.dart';
 import '../../domain/campaign_reward.dart';
 import '../../domain/campaign_status.dart';
 import '../campaign_formatters.dart';
@@ -16,7 +17,7 @@ class CampaignStatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppStatusChip(
-      label: campaignStatusLabel(status),
+      label: campaignStatusLabel(context.l10n, status),
       status: switch (status) {
         CampaignStatus.available => AppStatus.success,
         CampaignStatus.endingSoon => AppStatus.warning,

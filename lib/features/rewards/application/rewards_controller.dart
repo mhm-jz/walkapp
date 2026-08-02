@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../../core/preferences/app_settings_controller.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../campaigns/application/campaign_enrollment_controller.dart';
 import '../../campaigns/domain/campaign.dart';
 import '../../campaigns/domain/campaign_enrollment.dart';
@@ -36,12 +38,17 @@ final class RewardsController extends ChangeNotifier {
     this._walletRepository,
     this._claimedRewardRepository,
     this._campaignController,
+    this._settingsController,
   );
 
   final RewardCatalogRepository _catalogRepository;
   final RewardWalletRepository _walletRepository;
   final ClaimedRewardRepository _claimedRewardRepository;
   final CampaignEnrollmentController _campaignController;
+  final AppSettingsController _settingsController;
+
+  AppLocalizations get _l10n =>
+      lookupAppLocalizations(_settingsController.locale);
 
   RewardsViewState _viewState = RewardsViewState.loading;
   List<Reward> _catalog = const <Reward>[];
@@ -101,7 +108,7 @@ final class RewardsController extends ChangeNotifier {
       _queueCampaignCompletionProcessing();
     } catch (_) {
       _viewState = RewardsViewState.error;
-      _userMessage = 'Rewards could not be loaded. Please try again.';
+      _userMessage = _l10n.rewardsLoadTryAgain;
     }
     _notify();
   }
@@ -205,8 +212,7 @@ final class RewardsController extends ChangeNotifier {
           ? RewardActionResult.success
           : RewardActionResult.alreadyClaimed;
     } catch (_) {
-      _userMessage =
-          'The campaign reward could not be claimed. Please try again.';
+      _userMessage = _l10n.campaignRewardClaimError;
       _setSaving(false);
       return RewardActionResult.failed;
     }
@@ -232,7 +238,7 @@ final class RewardsController extends ChangeNotifier {
       id: 'transaction-$claimId',
       type: RewardTransactionType.debit,
       amount: reward.requiredPoints,
-      reason: 'Redeemed ${reward.brandName} ${reward.title}',
+      reason: _l10n.rewardRedeemedTransaction(reward.brandName, reward.title),
       createdAt: now,
       sourceRewardId: reward.id,
       idempotencyKey: debitKey,
@@ -249,7 +255,7 @@ final class RewardsController extends ChangeNotifier {
       expiresAt: now.add(Duration(days: reward.validForDays)),
       pointsSpent: reward.requiredPoints,
       discountLabel: reward.discountLabel,
-      usageChannel: channelLabel(reward.usageChannel),
+      usageChannel: channelLabel(_l10n, reward.usageChannel),
       minimumPurchaseDescription: reward.minimumPurchaseDescription,
       terms: reward.terms,
     );
@@ -274,8 +280,7 @@ final class RewardsController extends ChangeNotifier {
       _setSaving(false);
       return RewardActionResult.success;
     } catch (_) {
-      _userMessage =
-          'The reward could not be redeemed safely. Your local wallet was restored when possible.';
+      _userMessage = _l10n.rewardSafeRedeemError;
       _setSaving(false);
       return RewardActionResult.failed;
     }
@@ -296,7 +301,7 @@ final class RewardsController extends ChangeNotifier {
       _setSaving(false);
       return true;
     } catch (_) {
-      _userMessage = 'The coupon status could not be updated.';
+      _userMessage = _l10n.couponStatusUpdateError;
       _setSaving(false);
       return false;
     }
@@ -313,7 +318,7 @@ final class RewardsController extends ChangeNotifier {
         id: 'compensation-$claimId',
         type: RewardTransactionType.credit,
         amount: reward.requiredPoints,
-        reason: 'Restored failed ${reward.brandName} redemption',
+        reason: _l10n.rewardRedemptionRestoredTransaction(reward.brandName),
         createdAt: DateTime.now(),
         sourceRewardId: reward.id,
         idempotencyKey: 'reward-redemption-compensation:$claimId',
@@ -348,7 +353,7 @@ final class RewardsController extends ChangeNotifier {
               id: 'credit-${enrollment.id}',
               type: RewardTransactionType.credit,
               amount: amount,
-              reason: '${campaign.title} completed',
+              reason: _l10n.campaignCompletedTransaction(campaign.title),
               createdAt: enrollment.completedAt ?? DateTime.now(),
               sourceCampaignId: campaign.id,
               idempotencyKey: key,
@@ -357,8 +362,7 @@ final class RewardsController extends ChangeNotifier {
           await _reloadTransactions();
           _userMessage = null;
         } catch (_) {
-          _userMessage =
-              'Campaign points could not be added yet. Rewards will retry safely.';
+          _userMessage = _l10n.campaignPointsPending;
         }
       }
       _notify();
@@ -392,11 +396,12 @@ final class RewardsController extends ChangeNotifier {
     return 'WALK-${short(rewardId)}-${short(claimId)}';
   }
 
-  static String channelLabel(RewardChannel channel) => switch (channel) {
-    RewardChannel.online => 'Online',
-    RewardChannel.inStore => 'In participating stores',
-    RewardChannel.onlineAndInStore => 'Online and in participating stores',
-  };
+  static String channelLabel(AppLocalizations l10n, RewardChannel channel) =>
+      switch (channel) {
+        RewardChannel.online => l10n.onlineChannel,
+        RewardChannel.inStore => l10n.inStoreChannel,
+        RewardChannel.onlineAndInStore => l10n.onlineAndInStoreChannel,
+      };
 
   @override
   void dispose() {

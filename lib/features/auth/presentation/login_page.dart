@@ -5,6 +5,7 @@ import '../../../core/design_system/components/app_feedback.dart';
 import '../../../core/design_system/components/app_fields.dart';
 import '../../../core/design_system/tokens/app_tokens.dart';
 import '../../../core/preferences/app_settings_controller.dart';
+import '../../../l10n/app_localizations_extension.dart';
 import 'auth_form_controller.dart';
 import 'widgets/auth_brand_header.dart';
 import 'widgets/auth_form_container.dart';
@@ -21,7 +22,7 @@ class LoginPage extends StatefulWidget {
   });
 
   final AppSettingsController settingsController;
-  final VoidCallback onAuthenticated;
+  final Future<void> Function() onAuthenticated;
   final VoidCallback onRegister;
   final VoidCallback onBack;
 
@@ -45,10 +46,11 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _submit() async {
     FocusManager.instance.primaryFocus?.unfocus();
     final success = await _formController.submit(
+      l10n: context.l10n,
       email: _emailController.text,
       password: _passwordController.text,
     );
-    if (success && mounted) widget.onAuthenticated();
+    if (success && mounted) await widget.onAuthenticated();
   }
 
   @override
@@ -56,15 +58,15 @@ class _LoginPageState extends State<LoginPage> {
     return AuthPageLayout(
       backAction: AppIconButton(
         icon: Icons.arrow_back_rounded,
-        tooltip: 'Back',
+        tooltip: context.l10n.back,
         onPressed: _formController.isLoading ? null : widget.onBack,
       ),
       themeAction: AuthThemeAction(
         settingsController: widget.settingsController,
       ),
-      header: const AuthBrandHeader(
-        title: 'Welcome back',
-        message: 'Continue your journey and reach today’s goal.',
+      header: AuthBrandHeader(
+        title: context.l10n.welcomeBack,
+        message: context.l10n.loginWelcomeMessage,
       ),
       form: AuthFormContainer(
         child: AnimatedBuilder(
@@ -77,10 +79,11 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: AppSpacing.lg),
                 AppTextField(
                   controller: _emailController,
-                  label: 'Email address',
-                  hint: 'you@example.com',
+                  label: context.l10n.emailAddress,
+                  hint: context.l10n.emailExample,
                   errorText: _formController.errorFor('email'),
                   keyboardType: TextInputType.emailAddress,
+                  textDirection: TextDirection.ltr,
                   prefixIcon: Icons.mail_outline,
                   textInputAction: TextInputAction.next,
                   autofillHints: const <String>[AutofillHints.email],
@@ -90,7 +93,7 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: AppSpacing.lg),
                 AppTextField(
                   controller: _passwordController,
-                  label: 'Password',
+                  label: context.l10n.password,
                   errorText: _formController.errorFor('password'),
                   prefixIcon: Icons.lock_outline,
                   suffixIcon: PasswordVisibilityButton(
@@ -98,6 +101,7 @@ class _LoginPageState extends State<LoginPage> {
                     onPressed: _formController.togglePasswordVisibility,
                   ),
                   obscureText: _formController.obscurePassword,
+                  textDirection: TextDirection.ltr,
                   textInputAction: TextInputAction.done,
                   autofillHints: const <String>[AutofillHints.password],
                   enabled: !_formController.isLoading,
@@ -105,21 +109,21 @@ class _LoginPageState extends State<LoginPage> {
                   onSubmitted: (_) => _submit(),
                 ),
                 Align(
-                  alignment: Alignment.centerRight,
+                  alignment: AlignmentDirectional.centerEnd,
                   child: AppButton(
-                    label: 'Forgot password?',
+                    label: context.l10n.forgotPassword,
                     variant: AppButtonVariant.text,
                     onPressed: _formController.isLoading
                         ? null
                         : () => AppSnackbar.show(
                             context,
-                            'Password recovery will be available when authentication is connected.',
+                            context.l10n.passwordRecoveryUnavailable,
                           ),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 AppButton(
-                  label: 'Log in',
+                  label: context.l10n.login,
                   icon: Icons.arrow_forward_rounded,
                   expanded: true,
                   isLoading: _formController.isLoading,
@@ -129,9 +133,9 @@ class _LoginPageState extends State<LoginPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: <Widget>[
-                    const Flexible(child: Text('New to WalkApp?')),
+                    Flexible(child: Text(context.l10n.newToWalkApp)),
                     AppButton(
-                      label: 'Create account',
+                      label: context.l10n.register,
                       variant: AppButtonVariant.text,
                       onPressed: _formController.isLoading
                           ? null

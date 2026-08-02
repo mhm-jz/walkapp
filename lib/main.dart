@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:walkingapp/l10n/app_localizations.dart';
 
 import 'core/preferences/app_preferences.dart';
 import 'core/preferences/app_settings_controller.dart';
@@ -139,17 +141,25 @@ class _WalkingAppState extends State<WalkingApp> {
     );
   }
 
-  void _logout() {
+  Future<void> _logout() async {
+    await _settingsController.setAuthenticated(false);
+    if (!mounted) return;
     _navigatorKey.currentState?.pushAndRemoveUntil(
       _routeTo(_loginPage()),
       (route) => false,
     );
   }
 
+  Future<void> _completeAuthentication() async {
+    await _settingsController.setAuthenticated(true);
+    if (!mounted) return;
+    _openAppShell();
+  }
+
   RegisterPage _registerPage() {
     return RegisterPage(
       settingsController: _settingsController,
-      onAuthenticated: _openAppShell,
+      onAuthenticated: _completeAuthentication,
       onLogin: _replaceWithLogin,
       onBack: () => _navigatorKey.currentState?.pop(),
     );
@@ -158,7 +168,7 @@ class _WalkingAppState extends State<WalkingApp> {
   LoginPage _loginPage() {
     return LoginPage(
       settingsController: _settingsController,
-      onAuthenticated: _openAppShell,
+      onAuthenticated: _completeAuthentication,
       onRegister: _replaceWithRegister,
       onBack: () => _navigatorKey.currentState?.pop(),
     );
@@ -186,13 +196,32 @@ class _WalkingAppState extends State<WalkingApp> {
       builder: (context, child) => MaterialApp(
         navigatorKey: _navigatorKey,
         debugShowCheckedModeBanner: false,
-        title: 'WalkApp',
+        onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
+        locale: _settingsController.locale,
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,
         themeMode: _settingsController.themeMode,
         themeAnimationDuration: const Duration(milliseconds: 350),
         home: _settingsController.onboardingCompleted
-            ? _loginPage()
+            ? _settingsController.isAuthenticated
+                  ? AppShellPage(
+                      stepController: widget.controller,
+                      settingsController: _settingsController,
+                      enrollmentRepository: _campaignEnrollmentRepository,
+                      rewardWalletRepository: _rewardWalletRepository,
+                      claimedRewardRepository: _claimedRewardRepository,
+                      dailyStepHistoryRepository: _dailyStepHistoryRepository,
+                      notificationRepository: _notificationRepository,
+                      onLogout: _logout,
+                    )
+                  : _loginPage()
             : OnboardingPage(
                 settingsController: _settingsController,
                 stepController: widget.controller,

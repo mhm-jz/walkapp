@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:walkingapp/l10n/app_localizations_extension.dart';
 
 import '../../../core/design_system/components/app_button.dart';
 import '../../../core/design_system/components/app_card.dart';
@@ -40,18 +41,16 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
       confirmed =
           await AppDialog.show<bool>(
             context,
-            title: 'Clear read notifications?',
-            content: Text(
-              '$count read notifications will be removed from this device. Unread notifications will stay.',
-            ),
+            title: context.l10n.clearReadNotificationsQuestion,
+            content: Text(context.l10n.readNotificationsRemoved(count)),
             actions: <Widget>[
               AppButton(
-                label: 'Cancel',
+                label: context.l10n.cancel,
                 variant: AppButtonVariant.text,
                 onPressed: () => Navigator.of(context).pop(false),
               ),
               AppButton(
-                label: 'Clear read',
+                label: context.l10n.clearReadNotifications,
                 onPressed: () => Navigator.of(context).pop(true),
               ),
             ],
@@ -64,7 +63,7 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Notifications')),
+      appBar: AppBar(title: Text(context.l10n.notifications)),
       body: SafeArea(
         top: false,
         child: AnimatedBuilder(
@@ -74,9 +73,11 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
             return AnimatedSwitcher(
               duration: const Duration(milliseconds: 220),
               child: switch (controller.viewState) {
-                NotificationViewState.loading => const Center(
+                NotificationViewState.loading => Center(
                   key: ValueKey('loading'),
-                  child: AppLoadingIndicator(label: 'Loading notifications'),
+                  child: AppLoadingIndicator(
+                    label: context.l10n.loadingNotifications,
+                  ),
                 ),
                 NotificationViewState.error => Center(
                   key: const ValueKey('error'),
@@ -85,19 +86,18 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
                     child: AppErrorView(
                       message:
                           controller.userMessage ??
-                          'Notifications could not be loaded.',
+                          context.l10n.notificationsLoadError,
                       onRetry: controller.refresh,
                     ),
                   ),
                 ),
-                NotificationViewState.empty => const Center(
+                NotificationViewState.empty => Center(
                   key: ValueKey('empty'),
                   child: Padding(
                     padding: EdgeInsets.all(AppSpacing.lg),
                     child: AppEmptyState(
-                      title: 'No notifications yet',
-                      message:
-                          'Updates about goals, campaigns, and rewards will appear here.',
+                      title: context.l10n.noNotifications,
+                      message: context.l10n.notificationEmptyDescription,
                       icon: Icons.notifications_none,
                     ),
                   ),
@@ -120,7 +120,7 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
         .toList(growable: false);
     return ListView(
       key: const ValueKey('content'),
-      padding: const EdgeInsets.fromLTRB(
+      padding: const EdgeInsetsDirectional.fromSTEB(
         AppSpacing.lg,
         AppSpacing.md,
         AppSpacing.lg,
@@ -128,7 +128,7 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
       ),
       children: <Widget>[
         Text(
-          'Updates about your health goals, campaigns, and rewards.',
+          context.l10n.notificationPageDescription,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             color: context.appTheme.textSecondary,
           ),
@@ -136,20 +136,21 @@ class _NotificationCenterPageState extends State<NotificationCenterPage> {
         if (unread.isNotEmpty) ...<Widget>[
           const SizedBox(height: AppSpacing.sm),
           Align(
-            alignment: Alignment.centerRight,
+            alignment: AlignmentDirectional.centerEnd,
             child: AppButton(
-              label: 'Mark all as read',
+              label: context.l10n.markAllRead,
               variant: AppButtonVariant.text,
               onPressed: widget.controller.markAllAsRead,
             ),
           ),
-          _section(context, 'Unread', unread),
+          _section(context, context.l10n.unread, unread),
         ],
-        if (earlier.isNotEmpty) _section(context, 'Earlier', earlier),
+        if (earlier.isNotEmpty)
+          _section(context, context.l10n.earlier, earlier),
         if (widget.controller.readCount > 0) ...<Widget>[
           const SizedBox(height: AppSpacing.sm),
           AppButton(
-            label: 'Clear read notifications',
+            label: context.l10n.clearReadNotifications,
             variant: AppButtonVariant.outlined,
             icon: Icons.delete_sweep_outlined,
             onPressed: _clearRead,
@@ -194,8 +195,15 @@ class _NotificationCard extends StatelessWidget {
     final unread = notification.status == AppNotificationStatus.unread;
     return Semantics(
       button: true,
-      label:
-          '${unread ? 'Unread notification. ' : ''}${notification.title}. ${notification.message}',
+      label: unread
+          ? context.l10n.unreadNotificationSemantics(
+              notification.title,
+              notification.message,
+            )
+          : context.l10n.notificationSemantics(
+              notification.title,
+              notification.message,
+            ),
       child: AppCard(
         padding: EdgeInsets.zero,
         color: unread ? Theme.of(context).colorScheme.secondaryContainer : null,
@@ -222,11 +230,15 @@ class _NotificationCard extends StatelessWidget {
                             ),
                           ),
                           if (unread)
-                            const Padding(
-                              padding: EdgeInsets.only(left: AppSpacing.sm),
+                            Padding(
+                              padding: const EdgeInsetsDirectional.only(
+                                start: AppSpacing.sm,
+                              ),
                               child: Text(
-                                'NEW',
-                                style: TextStyle(fontWeight: FontWeight.w700),
+                                context.l10n.newLabel,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
                         ],
@@ -235,7 +247,7 @@ class _NotificationCard extends StatelessWidget {
                       Text(notification.message),
                       const SizedBox(height: AppSpacing.sm),
                       Text(
-                        _friendlyCreatedAt(notification.createdAt),
+                        _friendlyCreatedAt(context, notification.createdAt),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: context.appTheme.textSecondary,
                         ),
@@ -264,7 +276,7 @@ class _NotificationCard extends StatelessWidget {
     AppNotificationType.generalInformation => Icons.info_outline,
   };
 
-  static String _friendlyCreatedAt(DateTime value) {
+  static String _friendlyCreatedAt(BuildContext context, DateTime value) {
     final now = DateTime.now();
     final today = DateUtils.dateOnly(now);
     final date = DateUtils.dateOnly(value);
@@ -272,8 +284,12 @@ class _NotificationCard extends StatelessWidget {
     final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
     final minute = time.minute.toString().padLeft(2, '0');
     final period = time.period == DayPeriod.am ? 'AM' : 'PM';
-    if (date == today) return 'Today, $hour:$minute $period';
-    if (date == today.subtract(const Duration(days: 1))) return 'Yesterday';
+    if (date == today) {
+      return context.l10n.todayAtTime('$hour:$minute $period');
+    }
+    if (date == today.subtract(const Duration(days: 1))) {
+      return context.l10n.yesterday;
+    }
     return '${value.day}.${value.month}.${value.year}';
   }
 }

@@ -1,3 +1,5 @@
+import '../../../core/preferences/app_settings_controller.dart';
+import '../../../l10n/app_localizations.dart';
 import '../domain/campaign.dart';
 import '../domain/campaign_brand.dart';
 import '../domain/campaign_category.dart';
@@ -7,39 +9,42 @@ import '../domain/campaign_type.dart';
 import 'campaign_repository.dart';
 
 final class LocalCampaignRepository implements CampaignRepository {
+  LocalCampaignRepository(this._settingsController);
+
+  final AppSettingsController _settingsController;
+
   @override
   Future<List<Campaign>> getCampaigns() async {
     final today = _dateOnly(DateTime.now());
+    final l10n = lookupAppLocalizations(_settingsController.locale);
 
     return <Campaign>[
       Campaign(
         id: 'movewear-30k',
         brand: const CampaignBrand(name: 'MoveWear', initials: 'MW'),
-        title: '30,000 Step Week',
-        shortDescription:
-            'Build an active week with a clear verified-step target.',
-        fullDescription:
-            'Walk 30,000 eligible verified steps during the seven-day campaign period to unlock a saving on selected sportswear.',
+        title: l10n.campaignMoveWearContent('title'),
+        shortDescription: l10n.campaignMoveWearContent('short'),
+        fullDescription: l10n.campaignMoveWearContent('full'),
         category: CampaignCategory.clothing,
         type: CampaignType.stepTarget,
         startAt: today.subtract(const Duration(days: 1)),
         endAt: today.add(const Duration(days: 5)),
         targetSteps: 30000,
         requiredGoalDays: null,
-        reward: const CampaignReward(
+        reward: CampaignReward(
           rewardId: 'campaign-movewear-20',
-          title: 'Selected sportswear saving',
-          description: 'Save on eligible MoveWear sportswear.',
-          discountLabel: '20% off selected sportswear',
-          minimumPurchaseDescription: 'Minimum purchase of €50',
-          usageChannel: 'Online and in participating stores',
-          expirationDescription: 'Use within 14 days of unlocking',
-          inventoryLabel: 'Subject to availability of eligible items',
+          title: l10n.campaignMoveWearContent('rewardTitle'),
+          description: l10n.campaignMoveWearContent('rewardDescription'),
+          discountLabel: l10n.campaignMoveWearContent('discount'),
+          minimumPurchaseDescription: l10n.campaignMoveWearContent('minimum'),
+          usageChannel: l10n.campaignMoveWearContent('usage'),
+          expirationDescription: l10n.campaignMoveWearContent('expiration'),
+          inventoryLabel: l10n.campaignMoveWearContent('inventory'),
         ),
-        terms: const <String>[
-          'Discount applies only to items marked as campaign eligible.',
-          'Cannot be combined with another promotional offer.',
-          'One reward may be unlocked per participant.',
+        terms: <String>[
+          l10n.campaignMoveWearContent('term1'),
+          l10n.campaignMoveWearContent('term2'),
+          l10n.campaignMoveWearContent('term3'),
         ],
         visualStyle: 'active_green',
         isFeatured: true,
@@ -47,32 +52,30 @@ final class LocalCampaignRepository implements CampaignRepository {
       Campaign(
         id: 'greenbite-goal-days',
         brand: const CampaignBrand(name: 'GreenBite', initials: 'GB'),
-        title: 'Five Goal Days',
-        shortDescription:
-            'Reach your personal walking goal on five campaign days.',
-        fullDescription:
-            'Reach your current personal daily goal on five of the seven campaign days to unlock a healthy-meal saving.',
+        title: l10n.campaignGreenBiteContent('title'),
+        shortDescription: l10n.campaignGreenBiteContent('short'),
+        fullDescription: l10n.campaignGreenBiteContent('full'),
         category: CampaignCategory.food,
         type: CampaignType.dailyGoalConsistency,
         startAt: today.subtract(const Duration(days: 5)),
         endAt: today.add(const Duration(days: 1)),
         targetSteps: null,
         requiredGoalDays: 5,
-        reward: const CampaignReward(
+        reward: CampaignReward(
           type: CampaignRewardType.points,
           pointsAmount: 250,
-          title: '250 reward points',
-          description: 'Earn points to spend in the Reward Catalog.',
-          discountLabel: '250 points',
-          minimumPurchaseDescription: 'Minimum purchase of €25',
-          usageChannel: 'Online ordering only',
-          expirationDescription: 'Use within 10 days of unlocking',
-          inventoryLabel: 'Available while campaign reward stock lasts',
+          title: l10n.campaignGreenBiteContent('rewardTitle'),
+          description: l10n.campaignGreenBiteContent('rewardDescription'),
+          discountLabel: l10n.campaignGreenBiteContent('discount'),
+          minimumPurchaseDescription: l10n.campaignGreenBiteContent('minimum'),
+          usageChannel: l10n.campaignGreenBiteContent('usage'),
+          expirationDescription: l10n.campaignGreenBiteContent('expiration'),
+          inventoryLabel: l10n.campaignGreenBiteContent('inventory'),
         ),
-        terms: const <String>[
-          'Applies to eligible meal items only.',
-          'Delivery and service fees are excluded.',
-          'One reward may be unlocked per participant.',
+        terms: <String>[
+          l10n.campaignGreenBiteContent('term1'),
+          l10n.campaignGreenBiteContent('term2'),
+          l10n.campaignGreenBiteContent('term3'),
         ],
         visualStyle: 'fresh_food',
         isFeatured: false,
@@ -80,32 +83,30 @@ final class LocalCampaignRepository implements CampaignRepository {
       Campaign(
         id: 'urbanfit-city-walk',
         brand: const CampaignBrand(name: 'UrbanFit', initials: 'UF'),
-        title: 'City Walk Challenge',
-        shortDescription:
-            'A two-week walking target designed for everyday movement.',
-        fullDescription:
-            'Walk 60000 eligible verified steps over fourteen days to unlock a saving on selected training accessories.',
+        title: l10n.campaignUrbanFitContent('title'),
+        shortDescription: l10n.campaignUrbanFitContent('short'),
+        fullDescription: l10n.campaignUrbanFitContent('full'),
         category: CampaignCategory.sports,
         type: CampaignType.stepTarget,
         startAt: today.add(const Duration(days: 4)),
         endAt: today.add(const Duration(days: 17)),
         targetSteps: 60000,
         requiredGoalDays: null,
-        reward: const CampaignReward(
+        reward: CampaignReward(
           type: CampaignRewardType.points,
           pointsAmount: 400,
-          title: '400 reward points',
-          description: 'Earn points to spend in the Reward Catalog.',
-          discountLabel: '400 points',
-          minimumPurchaseDescription: 'Minimum purchase of €35',
-          usageChannel: 'Online only',
-          expirationDescription: 'Use within 21 days of unlocking',
-          inventoryLabel: 'Eligible products are subject to availability',
+          title: l10n.campaignUrbanFitContent('rewardTitle'),
+          description: l10n.campaignUrbanFitContent('rewardDescription'),
+          discountLabel: l10n.campaignUrbanFitContent('discount'),
+          minimumPurchaseDescription: l10n.campaignUrbanFitContent('minimum'),
+          usageChannel: l10n.campaignUrbanFitContent('usage'),
+          expirationDescription: l10n.campaignUrbanFitContent('expiration'),
+          inventoryLabel: l10n.campaignUrbanFitContent('inventory'),
         ),
-        terms: const <String>[
-          'Only accessories identified as eligible are included.',
-          'Cannot be exchanged for cash.',
-          'One reward may be unlocked per participant.',
+        terms: <String>[
+          l10n.campaignUrbanFitContent('term1'),
+          l10n.campaignUrbanFitContent('term2'),
+          l10n.campaignUrbanFitContent('term3'),
         ],
         visualStyle: 'city_blue',
         isFeatured: false,
@@ -113,30 +114,29 @@ final class LocalCampaignRepository implements CampaignRepository {
       Campaign(
         id: 'stepstyle-consistency',
         brand: const CampaignBrand(name: 'StepStyle', initials: 'SS'),
-        title: 'Consistent Steps',
-        shortDescription: 'Meet your personal daily goal on eight of ten days.',
-        fullDescription:
-            'Build a consistent walking routine by reaching your personal daily goal on eight separate campaign days.',
+        title: l10n.campaignStepStyleContent('title'),
+        shortDescription: l10n.campaignStepStyleContent('short'),
+        fullDescription: l10n.campaignStepStyleContent('full'),
         category: CampaignCategory.clothing,
         type: CampaignType.dailyGoalConsistency,
         startAt: today.subtract(const Duration(days: 1)),
         endAt: today.add(const Duration(days: 8)),
         targetSteps: null,
         requiredGoalDays: 8,
-        reward: const CampaignReward(
+        reward: CampaignReward(
           rewardId: 'campaign-stepstyle-18',
-          title: 'Walking apparel saving',
-          description: 'Save on selected StepStyle walking apparel.',
-          discountLabel: '18% off eligible walking apparel',
-          minimumPurchaseDescription: 'Minimum purchase of €60',
-          usageChannel: 'Online and in participating stores',
-          expirationDescription: 'Use within 14 days of unlocking',
-          inventoryLabel: 'Sizes and styles are subject to availability',
+          title: l10n.campaignStepStyleContent('rewardTitle'),
+          description: l10n.campaignStepStyleContent('rewardDescription'),
+          discountLabel: l10n.campaignStepStyleContent('discount'),
+          minimumPurchaseDescription: l10n.campaignStepStyleContent('minimum'),
+          usageChannel: l10n.campaignStepStyleContent('usage'),
+          expirationDescription: l10n.campaignStepStyleContent('expiration'),
+          inventoryLabel: l10n.campaignStepStyleContent('inventory'),
         ),
-        terms: const <String>[
-          'Discount excludes clearance items.',
-          'Cannot be combined with membership pricing.',
-          'One reward may be unlocked per participant.',
+        terms: <String>[
+          l10n.campaignStepStyleContent('term1'),
+          l10n.campaignStepStyleContent('term2'),
+          l10n.campaignStepStyleContent('term3'),
         ],
         visualStyle: 'steady_purple',
         isFeatured: false,
@@ -144,31 +144,29 @@ final class LocalCampaignRepository implements CampaignRepository {
       Campaign(
         id: 'freshday-weekend',
         brand: const CampaignBrand(name: 'FreshDay', initials: 'FD'),
-        title: 'Fresh Start Walk',
-        shortDescription:
-            'Collect 20,000 verified steps during a five-day reset.',
-        fullDescription:
-            'Walk 20000 eligible verified steps during the campaign period and unlock a saving on an eligible wellness bundle.',
+        title: l10n.campaignFreshDayContent('title'),
+        shortDescription: l10n.campaignFreshDayContent('short'),
+        fullDescription: l10n.campaignFreshDayContent('full'),
         category: CampaignCategory.wellness,
         type: CampaignType.stepTarget,
         startAt: today,
         endAt: today.add(const Duration(days: 4)),
         targetSteps: 20000,
         requiredGoalDays: null,
-        reward: const CampaignReward(
+        reward: CampaignReward(
           rewardId: 'campaign-freshday-10',
-          title: 'Wellness bundle saving',
-          description: 'Save on one eligible FreshDay wellness bundle.',
-          discountLabel: '€10 off an eligible wellness bundle',
-          minimumPurchaseDescription: 'Minimum purchase of €40',
-          usageChannel: 'Online only',
-          expirationDescription: 'Use within 7 days of unlocking',
-          inventoryLabel: 'Limited to available eligible bundles',
+          title: l10n.campaignFreshDayContent('rewardTitle'),
+          description: l10n.campaignFreshDayContent('rewardDescription'),
+          discountLabel: l10n.campaignFreshDayContent('discount'),
+          minimumPurchaseDescription: l10n.campaignFreshDayContent('minimum'),
+          usageChannel: l10n.campaignFreshDayContent('usage'),
+          expirationDescription: l10n.campaignFreshDayContent('expiration'),
+          inventoryLabel: l10n.campaignFreshDayContent('inventory'),
         ),
-        terms: const <String>[
-          'Applies to campaign-marked bundles only.',
-          'Shipping charges do not count toward the minimum purchase.',
-          'One reward may be unlocked per participant.',
+        terms: <String>[
+          l10n.campaignFreshDayContent('term1'),
+          l10n.campaignFreshDayContent('term2'),
+          l10n.campaignFreshDayContent('term3'),
         ],
         visualStyle: 'calm_teal',
         isFeatured: false,
@@ -176,31 +174,29 @@ final class LocalCampaignRepository implements CampaignRepository {
       Campaign(
         id: 'activelife-goal-week',
         brand: const CampaignBrand(name: 'ActiveLife', initials: 'AL'),
-        title: 'Active Goal Week',
-        shortDescription:
-            'A completed prototype campaign focused on daily goals.',
-        fullDescription:
-            'This campaign asked participants to reach their personal daily goal on four of seven campaign days.',
+        title: l10n.campaignActiveLifeContent('title'),
+        shortDescription: l10n.campaignActiveLifeContent('short'),
+        fullDescription: l10n.campaignActiveLifeContent('full'),
         category: CampaignCategory.wellness,
         type: CampaignType.dailyGoalConsistency,
         startAt: today.subtract(const Duration(days: 14)),
         endAt: today.subtract(const Duration(days: 8)),
         targetSteps: null,
         requiredGoalDays: 4,
-        reward: const CampaignReward(
+        reward: CampaignReward(
           rewardId: 'campaign-activelife-25',
-          title: 'Wellness session saving',
-          description: 'A saving on an eligible ActiveLife session.',
-          discountLabel: '25% off one eligible wellness session',
-          minimumPurchaseDescription: 'No minimum purchase',
-          usageChannel: 'In participating locations',
-          expirationDescription: 'Reward availability period has ended',
-          inventoryLabel: 'Was subject to appointment availability',
+          title: l10n.campaignActiveLifeContent('rewardTitle'),
+          description: l10n.campaignActiveLifeContent('rewardDescription'),
+          discountLabel: l10n.campaignActiveLifeContent('discount'),
+          minimumPurchaseDescription: l10n.campaignActiveLifeContent('minimum'),
+          usageChannel: l10n.campaignActiveLifeContent('usage'),
+          expirationDescription: l10n.campaignActiveLifeContent('expiration'),
+          inventoryLabel: l10n.campaignActiveLifeContent('inventory'),
         ),
-        terms: const <String>[
-          'Applied to selected sessions only.',
-          'Advance booking was required.',
-          'The campaign and its reward period have ended.',
+        terms: <String>[
+          l10n.campaignActiveLifeContent('term1'),
+          l10n.campaignActiveLifeContent('term2'),
+          l10n.campaignActiveLifeContent('term3'),
         ],
         visualStyle: 'inactive_neutral',
         isFeatured: false,

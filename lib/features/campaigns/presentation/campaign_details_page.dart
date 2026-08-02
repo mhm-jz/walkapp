@@ -6,6 +6,7 @@ import '../../../core/design_system/components/app_feedback.dart';
 import '../../../core/design_system/extensions/app_theme_extension.dart';
 import '../../../core/design_system/tokens/app_tokens.dart';
 import '../../../core/preferences/app_settings_controller.dart';
+import '../../../l10n/app_localizations_extension.dart';
 import '../application/campaign_enrollment_controller.dart';
 import '../domain/campaign.dart';
 import '../domain/campaign_enrollment.dart';
@@ -48,18 +49,16 @@ class CampaignDetailsPage extends StatelessWidget {
   Future<void> _showActiveConflict(BuildContext context) async {
     final viewActive = await AppDialog.show<bool>(
       context,
-      title: 'You already have an active campaign',
-      content: const Text(
-        'Complete or leave your current campaign before joining another one.',
-      ),
+      title: context.l10n.activeCampaignExists,
+      content: Text(context.l10n.completeOrLeaveCampaign),
       actions: <Widget>[
         AppButton(
-          label: 'Keep current campaign',
+          label: context.l10n.keepCurrentCampaign,
           variant: AppButtonVariant.text,
           onPressed: () => Navigator.of(context).pop(false),
         ),
         AppButton(
-          label: 'View active campaign',
+          label: context.l10n.viewActiveCampaign,
           onPressed: () => Navigator.of(context).pop(true),
         ),
       ],
@@ -74,52 +73,61 @@ class CampaignDetailsPage extends StatelessWidget {
     }
     final capturedGoal = settingsController.dailyGoal;
     final requirement = campaign.type == CampaignType.stepTarget
-        ? '${formatCampaignNumber(campaign.targetSteps ?? 0)} confirmed campaign steps'
-        : '${campaign.requiredGoalDays} separate days reaching the captured '
-              '${formatCampaignNumber(capturedGoal)}-step goal';
+        ? context.l10n.confirmedCampaignStepsRequirement(
+            formatCampaignNumber(campaign.targetSteps ?? 0),
+          )
+        : context.l10n.separateGoalDaysRequirement(
+            campaign.requiredGoalDays ?? 0,
+            formatCampaignNumber(capturedGoal),
+          );
     final confirmed = await AppDialog.show<bool>(
       context,
-      title: 'Join ${campaign.title}?',
+      title: context.l10n.joinCampaignQuestion(campaign.title),
       content: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Text('Requirement: $requirement'),
+            Text(context.l10n.requirementValue(requirement)),
             const SizedBox(height: AppSpacing.sm),
-            Text('Ends: ${campaignDate(campaign.endAt)}'),
-            const SizedBox(height: AppSpacing.sm),
-            Text('Reward preview: ${campaign.reward.discountLabel}'),
-            const SizedBox(height: AppSpacing.md),
-            const Text(
-              'Progress starts from zero after joining. Only confirmed steps '
-              'recorded after joining count. Normal health tracking continues.',
+            Text(
+              context.l10n.endsOn(campaignDate(context.l10n, campaign.endAt)),
             ),
             const SizedBox(height: AppSpacing.sm),
-            const Text('Only one campaign can be active at a time.'),
+            Text(
+              context.l10n.rewardPreviewValue(campaign.reward.discountLabel),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(context.l10n.joinProgressExplanation),
+            const SizedBox(height: AppSpacing.sm),
+            Text(context.l10n.oneActiveCampaign),
             if (campaign.type == CampaignType.dailyGoalConsistency) ...<Widget>[
               const SizedBox(height: AppSpacing.sm),
               Text(
-                'Your ${formatCampaignNumber(capturedGoal)}-step daily goal is '
-                'captured now and will not change for this campaign.',
+                context.l10n.capturedGoalExplanation(
+                  formatCampaignNumber(capturedGoal),
+                ),
               ),
             ],
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Leaving removes this progress from active use. Completing this '
-              'campaign ${campaign.reward.type == CampaignRewardType.points ? 'awards ${campaign.reward.pointsAmount ?? 0} points' : 'unlocks a reward you can claim'}.',
+              campaign.reward.type == CampaignRewardType.points
+                  ? context.l10n.leavingCampaignPointsOutcome(
+                      campaign.reward.pointsAmount ?? 0,
+                    )
+                  : context.l10n.leavingCampaignRewardOutcome,
             ),
           ],
         ),
       ),
       actions: <Widget>[
         AppButton(
-          label: 'Cancel',
+          label: context.l10n.cancel,
           variant: AppButtonVariant.text,
           onPressed: () => Navigator.of(context).pop(false),
         ),
         AppButton(
-          label: 'Join Campaign',
+          label: context.l10n.joinCampaign,
           onPressed: () => Navigator.of(context).pop(true),
         ),
       ],
@@ -132,23 +140,25 @@ class CampaignDetailsPage extends StatelessWidget {
     if (!context.mounted) return;
     switch (result) {
       case CampaignJoinResult.joined:
-        AppSnackbar.show(context, 'Campaign joined. Progress starts at zero.');
+        AppSnackbar.show(
+          context,
+          'به چالش پیوستید. پیشرفت از صفر آغاز می‌شود.',
+        );
         _openActiveCampaign(context);
       case CampaignJoinResult.activeConflict:
         await _showActiveConflict(context);
       case CampaignJoinResult.unavailable:
         AppSnackbar.show(
           context,
-          'This campaign is no longer available to join.',
+          context.l10n.campaignNoLongerAvailable,
           isError: true,
         );
       case CampaignJoinResult.alreadyCompleted:
-        AppSnackbar.show(context, 'You already completed this campaign.');
+        AppSnackbar.show(context, context.l10n.campaignAlreadyCompleted);
       case CampaignJoinResult.persistenceFailed:
         AppSnackbar.show(
           context,
-          enrollmentController.userMessage ??
-              'The campaign could not be joined. Please try again.',
+          enrollmentController.userMessage ?? context.l10n.campaignJoinError,
           isError: true,
         );
     }
@@ -175,7 +185,7 @@ class CampaignDetailsPage extends StatelessWidget {
           result != RewardActionResult.alreadyClaimed) {
         AppSnackbar.show(
           context,
-          rewardsController.userMessage ?? 'The reward could not be claimed.',
+          rewardsController.userMessage ?? context.l10n.rewardClaimError,
           isError: true,
         );
         return;
@@ -215,11 +225,11 @@ class CampaignDetailsPage extends StatelessWidget {
         final anotherActive =
             enrollmentController.activeEnrollment != null && !isThisActive;
         return Scaffold(
-          appBar: AppBar(title: const Text('Campaign details')),
+          appBar: AppBar(title: Text(context.l10n.campaignDetails)),
           body: SafeArea(
             top: false,
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(
+              padding: const EdgeInsetsDirectional.fromSTEB(
                 AppSpacing.lg,
                 AppSpacing.lg,
                 AppSpacing.lg,
@@ -237,31 +247,34 @@ class CampaignDetailsPage extends StatelessWidget {
                       const SizedBox(height: AppSpacing.xl),
                       _CampaignSummary(campaign: campaign),
                       const SizedBox(height: AppSpacing.xl),
-                      const _SectionHeading(title: 'How it works'),
+                      _SectionHeading(title: context.l10n.howItWorks),
                       const SizedBox(height: AppSpacing.sm),
-                      const AppCard(
+                      AppCard(
                         child: Column(
                           children: <Widget>[
-                            _NumberedStep(number: 1, text: 'Join the campaign'),
-                            Divider(height: AppSpacing.xl),
+                            _NumberedStep(
+                              number: 1,
+                              text: context.l10n.joinCampaignStep,
+                            ),
+                            const Divider(height: AppSpacing.xl),
                             _NumberedStep(
                               number: 2,
-                              text: 'Walk during the campaign period',
+                              text: context.l10n.walkCampaignPeriodStep,
                             ),
-                            Divider(height: AppSpacing.xl),
+                            const Divider(height: AppSpacing.xl),
                             _NumberedStep(
                               number: 3,
-                              text: 'Complete the goal and unlock the reward',
+                              text: context.l10n.unlockRewardStep,
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(height: AppSpacing.xl),
-                      const _SectionHeading(title: 'Goal rules'),
+                      _SectionHeading(title: context.l10n.goalRules),
                       const SizedBox(height: AppSpacing.sm),
                       AppCard(child: _GoalRules(campaign: campaign)),
                       const SizedBox(height: AppSpacing.xl),
-                      const _SectionHeading(title: 'Reward terms'),
+                      _SectionHeading(title: context.l10n.rewardTerms),
                       const SizedBox(height: AppSpacing.sm),
                       CampaignRewardPreview(reward: campaign.reward),
                       const SizedBox(height: AppSpacing.md),
@@ -271,6 +284,7 @@ class CampaignDetailsPage extends StatelessWidget {
                       const SizedBox(height: AppSpacing.xl),
                       AppButton(
                         label: _actionLabel(
+                          context,
                           status,
                           isThisActive: isThisActive,
                           completed: completed,
@@ -307,25 +321,29 @@ class CampaignDetailsPage extends StatelessWidget {
   }
 
   String _actionLabel(
+    BuildContext context,
     CampaignStatus status, {
     required bool isThisActive,
     required bool completed,
     required bool expiredEnrollment,
   }) {
-    if (isThisActive) return 'View Campaign Progress';
+    if (isThisActive) return context.l10n.viewProgress;
     if (completed) {
       if (campaign.reward.type == CampaignRewardType.points) {
-        return 'View Rewards';
+        return context.l10n.rewards;
       }
       return rewardsController.claimedRewardForCampaign(campaign.id) == null
-          ? 'Claim Reward'
-          : 'View Reward';
+          ? context.l10n.claimReward
+          : context.l10n.viewClaimedReward;
     }
-    if (expiredEnrollment) return 'Campaign Ended';
+    if (expiredEnrollment) return context.l10n.campaignFinished;
     return switch (status) {
-      CampaignStatus.available || CampaignStatus.endingSoon => 'Join Campaign',
-      CampaignStatus.upcoming => 'Starts on ${campaignDate(campaign.startAt)}',
-      CampaignStatus.expired => 'Campaign Ended',
+      CampaignStatus.available ||
+      CampaignStatus.endingSoon => context.l10n.joinCampaign,
+      CampaignStatus.upcoming => context.l10n.startsOn(
+        campaignDate(context.l10n, campaign.startAt),
+      ),
+      CampaignStatus.expired => context.l10n.campaignFinished,
     };
   }
 }
@@ -364,7 +382,11 @@ class _CampaignIdentity extends StatelessWidget {
           runSpacing: AppSpacing.sm,
           children: <Widget>[
             CampaignStatusChip(status: status),
-            Chip(label: Text(campaignCategoryLabel(campaign.category))),
+            Chip(
+              label: Text(
+                campaignCategoryLabel(context.l10n, campaign.category),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
@@ -374,8 +396,8 @@ class _CampaignIdentity extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         Text(
-          '${campaignDate(campaign.startAt)} – '
-          '${campaignDate(campaign.endAt)}',
+          '${campaignDate(context.l10n, campaign.startAt)} – '
+          '${campaignDate(context.l10n, campaign.endAt)}',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             color: context.appTheme.textSecondary,
           ),
@@ -393,21 +415,21 @@ class _CampaignSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final goalLabel = campaign.type == CampaignType.stepTarget
-        ? 'Target steps'
-        : 'Required goal days';
+        ? context.l10n.targetSteps
+        : context.l10n.requiredGoalDays;
     final goalValue = campaign.type == CampaignType.stepTarget
         ? '${campaign.targetSteps}'
-        : '${campaign.requiredGoalDays} days';
+        : context.l10n.daysValue(campaign.requiredGoalDays ?? 0);
     final items = <({IconData icon, String label, String value})>[
       (icon: Icons.flag_outlined, label: goalLabel, value: goalValue),
       (
         icon: Icons.calendar_month_outlined,
-        label: 'Campaign duration',
-        value: '${campaign.durationDays} days',
+        label: context.l10n.campaignDuration,
+        value: context.l10n.daysValue(campaign.durationDays),
       ),
       (
         icon: Icons.redeem_outlined,
-        label: 'Reward',
+        label: context.l10n.reward,
         value: campaign.reward.discountLabel,
       ),
     ];
@@ -449,17 +471,21 @@ class _GoalRules extends StatelessWidget {
   Widget build(BuildContext context) {
     final rules = campaign.type == CampaignType.stepTarget
         ? <String>[
-            '${campaign.targetSteps} eligible verified steps are required.',
-            'Walk between ${campaignDate(campaign.startAt)} and '
-                '${campaignDate(campaign.endAt)}.',
-            'Progress begins after joining.',
-            'Only eligible verified activity counts.',
+            context.l10n.requiredVerifiedSteps(campaign.targetSteps ?? 0),
+            context.l10n.walkBetweenDates(
+              campaignDate(context.l10n, campaign.startAt),
+              campaignDate(context.l10n, campaign.endAt),
+            ),
+            'پیشرفت پس از عضویت آغاز می‌شود.',
+            context.l10n.eligibleActivityOnly,
           ]
         : <String>[
-            '${campaign.requiredGoalDays} separate goal days are required.',
-            'Your personal daily goal is used.',
-            'Each campaign day can count at most once.',
-            'Progress begins after joining.',
+            context.l10n.requiredSeparateGoalDays(
+              campaign.requiredGoalDays ?? 0,
+            ),
+            context.l10n.personalDailyGoalUsed,
+            context.l10n.campaignDayCountsOnce,
+            'پیشرفت پس از عضویت آغاز می‌شود.',
           ];
     return _BulletList(items: rules);
   }
@@ -476,21 +502,27 @@ class _RewardTerms extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        _TermRow(label: 'Reward', value: reward.discountLabel),
+        _TermRow(label: context.l10n.reward, value: reward.discountLabel),
         const Divider(height: AppSpacing.xl),
         _TermRow(
-          label: 'Minimum purchase',
+          label: context.l10n.minimumPurchase,
           value: reward.minimumPurchaseDescription,
         ),
         const Divider(height: AppSpacing.xl),
-        _TermRow(label: 'Where to use', value: reward.usageChannel),
+        _TermRow(label: context.l10n.whereToUse, value: reward.usageChannel),
         const Divider(height: AppSpacing.xl),
-        _TermRow(label: 'Expiration', value: reward.expirationDescription),
+        _TermRow(
+          label: context.l10n.expiration,
+          value: reward.expirationDescription,
+        ),
         const Divider(height: AppSpacing.xl),
-        _TermRow(label: 'Availability', value: reward.inventoryLabel),
+        _TermRow(
+          label: context.l10n.availability,
+          value: reward.inventoryLabel,
+        ),
         const Divider(height: AppSpacing.xl),
         Text(
-          'Important restrictions',
+          context.l10n.importantRestrictions,
           style: Theme.of(context).textTheme.titleSmall,
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -537,12 +569,7 @@ class _BehaviorExplanation extends StatelessWidget {
           color: Theme.of(context).colorScheme.primary,
         ),
         const SizedBox(width: AppSpacing.md),
-        const Expanded(
-          child: Text(
-            'Your health steps continue to be tracked normally.\n\n'
-            'Campaign progress is calculated separately after you join.',
-          ),
-        ),
+        Expanded(child: Text(context.l10n.healthStepsContinueExplanation)),
       ],
     );
   }

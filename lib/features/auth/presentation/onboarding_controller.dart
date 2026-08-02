@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/preferences/app_settings_controller.dart';
 import '../../../core/preferences/personalization_options.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../step_counter/domain/step_tracking_service.dart';
 import '../../step_counter/presentation/step_counter_controller.dart';
 
@@ -75,7 +76,9 @@ final class OnboardingController extends ChangeNotifier {
       permissionStatus = await stepController.requestActivityAccess();
     } catch (_) {
       permissionStatus = ActivityAccessStatus.denied;
-      userMessage = 'Activity access could not be requested. Please try again.';
+      userMessage = lookupAppLocalizations(
+        settingsController.locale,
+      ).activityAccessRequestError;
     } finally {
       isBusy = false;
       notifyListeners();
@@ -96,7 +99,9 @@ final class OnboardingController extends ChangeNotifier {
       await settingsController.completeOnboarding();
       return true;
     } catch (_) {
-      userMessage = 'Your setup could not be saved locally. Please try again.';
+      userMessage = lookupAppLocalizations(
+        settingsController.locale,
+      ).setupSaveError;
       return false;
     } finally {
       isBusy = false;

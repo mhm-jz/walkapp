@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter_activity_recognition/flutter_activity_recognition.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:pedometer/pedometer.dart';
+import '../../../core/diagnostics/step_diagnostic_event.dart';
+import '../../../core/diagnostics/step_diagnostic_logger.dart';
 
 import '../data/step_local_store.dart';
 import '../data/step_snapshot.dart';
@@ -46,6 +48,14 @@ final class StepTaskHandler extends TaskHandler {
   String? _lastNotificationText;
   String? _pendingNotificationText;
   DateTime? _lastNotificationUpdateAt;
+  StepDiagnosticLogger? _diagnostics;
+  int _windowId = 0;
+  int _samplingCallbackSequence = 0;
+  int? _latestEvidenceElapsedMs;
+  int? _latestEvidenceWindowId;
+  int? _latestEvidenceBucketIndex;
+  final Map<int, List<Map<String, Object?>>> _bucketSamplingHistory = {};
+  int? _windowStartedElapsedMs;
 
   @override
   Future<void> onStart(DateTime timestamp, TaskStarter starter) async {
@@ -63,10 +73,33 @@ final class StepTaskHandler extends TaskHandler {
       if (directoryPath == null || directoryPath.isEmpty) {
         throw StateError('Hive path was not provided to the service.');
       }
+      final diagnosticId = await FlutterForegroundTask.getData<String>(
+        key: StepLocalStore.taskDiagnosticSessionIdKey,
+      );
+      if (diagnosticId != null) {
+        final diagnosticStartElapsedMs =
+            await FlutterForegroundTask.getData<int>(
+              key: StepLocalStore.taskDiagnosticSessionStartElapsedMsKey,
+            );
+        _diagnostics = await StepDiagnosticLogger.create(
+          supportPath: directoryPath,
+          source: 'background',
+          sessionId: diagnosticId,
+          sessionStartedElapsedRealtimeMs: diagnosticStartElapsedMs,
+        );
+      }
+      _diagnostics?.record(
+        StepDiagnosticEventType.serviceStart,
+        payload: {'starter': starter.name},
+      );
 
       _store = StepLocalStore(directoryPath: directoryPath);
       final previousSnapshot = await _store!.readSnapshot(
         reason: 'serviceStart',
+      );
+      _diagnostics?.record(
+        StepDiagnosticEventType.hiveRead,
+        payload: _snapshotPayload(previousSnapshot, 'serviceStart'),
       );
 
       // Only confirmed durable state is recovered. Baseline, buckets, and
@@ -87,6 +120,11 @@ final class StepTaskHandler extends TaskHandler {
       _subscribeToPedometer();
       _publish(reason: 'serviceStarted', persist: true);
     } catch (error) {
+      _diagnostics?.record(
+        StepDiagnosticEventType.serviceError,
+        payload: {'errorType': error.runtimeType.toString()},
+        flush: true,
+      );
       _error = 'Service initialization failed: $error';
       _isTracking = false;
       _stopReason = 'initialization_error';
@@ -97,6 +135,7 @@ final class StepTaskHandler extends TaskHandler {
   }
 
   void _subscribeToPedometer() {
+    _diagnostics?.record(StepDiagnosticEventType.pedometerSubscribe);
     logStepDiagnostic(
       '[STEP_SENSOR_SUBSCRIBE] timestamp=${DateTime.now().toIso8601String()} '
       'alreadySubscribed=${_stepSubscription != null}',
@@ -109,6 +148,7 @@ final class StepTaskHandler extends TaskHandler {
   }
 
   void _subscribeToActivity() {
+    _diagnostics?.record(StepDiagnosticEventType.samplingSubscribeRequest);
     logStepDiagnostic(
       '[STEP_ACTIVITY_SUBSCRIBE] timestamp=${DateTime.now().toIso8601String()} '
       'alreadySubscribed=${_activitySubscription != null}',
@@ -117,8 +157,13 @@ final class StepTaskHandler extends TaskHandler {
         .listen(
           _onActivityChanged,
           onError: _onActivityError,
+          onDone: () => _diagnostics?.record(
+            StepDiagnosticEventType.samplingStreamDone,
+            flush: true,
+          ),
           cancelOnError: false,
         );
+    _diagnostics?.record(StepDiagnosticEventType.samplingSubscribeSuccess);
   }
 
   void _onStepCount(StepCount event) {
@@ -128,12 +173,32 @@ final class StepTaskHandler extends TaskHandler {
     final delta = previousRawSteps == null
         ? null
         : event.steps - previousRawSteps;
+    final callbackElapsedMs = _diagnostics?.nowElapsedMs;
+    final provisionalBefore = session?.provisionalSteps ?? 0;
 
     if (!_isTracking || _isStopping || session == null) {
       logStepDiagnostic(
         '[STEP_SENSOR] raw=${event.steps} '
         'previous=${previousRawSteps ?? 'none'} delta=${delta ?? 'none'} '
         'timestamp=${now.toIso8601String()} result=ignoredNotTracking',
+      );
+      _diagnostics?.record(
+        StepDiagnosticEventType.pedometerCallback,
+        payload: {
+          'pedometerCallbackReceivedElapsedRealtimeMs': callbackElapsedMs,
+          'pedometerCallbackReceivedWallClockUtc': now
+              .toUtc()
+              .toIso8601String(),
+          'sensorEventElapsedRealtimeMs': null,
+          'sensorEventTimestampAvailable': false,
+          'sensorCumulativeValue': event.steps,
+          'previousSensorCumulativeValue': previousRawSteps,
+          'calculatedDelta': delta,
+          'rawDeltaAccepted': false,
+          'rawDeltaRejectionReason': 'OUT_OF_ACTIVE_SESSION',
+          'provisionalBefore': provisionalBefore,
+          'provisionalAfter': provisionalBefore,
+        },
       );
       return;
     }
@@ -144,6 +209,36 @@ final class StepTaskHandler extends TaskHandler {
       cumulativeRawSteps: event.steps,
       timestamp: now,
     );
+    final rejectionReason = switch (update.status) {
+      RawStepStatus.baselineEstablished => 'BASELINE_ONLY',
+      RawStepStatus.provisionalAdded => null,
+      RawStepStatus.ignored when delta != null && delta <= 0 =>
+        'NON_POSITIVE_DELTA',
+      RawStepStatus.ignored
+          when delta != null && delta > validationPolicy.maxRawDeltaPerEvent =>
+        'DELTA_OVER_LIMIT',
+      RawStepStatus.ignored => 'UNKNOWN',
+    };
+    _diagnostics?.record(
+      StepDiagnosticEventType.pedometerCallback,
+      windowId: session.hasActiveWindow ? _windowId : null,
+      bucketIndex: update.bucketIndex,
+      payload: {
+        'pedometerCallbackReceivedElapsedRealtimeMs': callbackElapsedMs,
+        'pedometerCallbackReceivedWallClockUtc': now.toUtc().toIso8601String(),
+        'sensorEventElapsedRealtimeMs': null,
+        'sensorEventTimestampAvailable': false,
+        'sensorCumulativeValue': event.steps,
+        'previousSensorCumulativeValue': previousRawSteps,
+        'calculatedDelta': delta,
+        'currentWindowId': session.hasActiveWindow ? _windowId : null,
+        'currentBucketIndex': update.bucketIndex,
+        'rawDeltaAccepted': update.status == RawStepStatus.provisionalAdded,
+        'rawDeltaRejectionReason': rejectionReason,
+        'provisionalBefore': provisionalBefore,
+        'provisionalAfter': session.provisionalSteps,
+      },
+    );
     logStepDiagnostic(
       '[STEP_SENSOR] raw=${event.steps} '
       'previous=${previousRawSteps ?? 'none'} delta=${delta ?? 'none'} '
@@ -153,11 +248,63 @@ final class StepTaskHandler extends TaskHandler {
 
     switch (update.status) {
       case RawStepStatus.baselineEstablished:
+        _diagnostics?.record(
+          StepDiagnosticEventType.pedometerBaseline,
+          payload: {'sensorCumulativeValue': event.steps},
+        );
         _publish(reason: 'sensorBaseline');
         return;
       case RawStepStatus.ignored:
+        _diagnostics?.record(
+          StepDiagnosticEventType.rawDeltaRejected,
+          payload: {'delta': delta, 'reason': rejectionReason},
+        );
         return;
       case RawStepStatus.provisionalAdded:
+        if (update.startedWindow) {
+          _windowId++;
+          _windowStartedElapsedMs = callbackElapsedMs;
+          _bucketSamplingHistory.clear();
+          final start = callbackElapsedMs;
+          _diagnostics?.record(
+            StepDiagnosticEventType.windowOpen,
+            windowId: _windowId,
+            payload: {
+              'windowOpenedElapsedRealtimeMs': start,
+              'windowStartElapsedRealtimeMs': start,
+              'windowEndElapsedRealtimeMs': start == null
+                  ? null
+                  : start + validationPolicy.windowDuration.inMilliseconds,
+            },
+          );
+        }
+        _diagnostics?.record(
+          StepDiagnosticEventType.rawDeltaAccepted,
+          windowId: _windowId,
+          bucketIndex: update.bucketIndex,
+          payload: {'delta': update.delta},
+        );
+        _diagnostics?.record(
+          StepDiagnosticEventType.candidateCreated,
+          windowId: _windowId,
+          bucketIndex: update.bucketIndex,
+          payload: {
+            'delta': update.delta,
+            'candidateObservedElapsedRealtimeMs': callbackElapsedMs,
+            'candidateAssignedElapsedRealtimeMs': callbackElapsedMs,
+            'candidateTimeSource': 'PEDOMETER_CALLBACK_RECEIVE_TIME',
+          },
+        );
+        _diagnostics?.record(
+          StepDiagnosticEventType.bucketAssignment,
+          windowId: _windowId,
+          bucketIndex: update.bucketIndex,
+          payload: {
+            'delta': update.delta,
+            'candidateObservedElapsedRealtimeMs': callbackElapsedMs,
+            'candidateAssignedElapsedRealtimeMs': callbackElapsedMs,
+          },
+        );
         final appliedActivity = update.appliedActivityEvidence;
 
         if (appliedActivity != null) {
@@ -181,14 +328,46 @@ final class StepTaskHandler extends TaskHandler {
   void _onActivityChanged(Activity event) {
     final session = _session;
     final now = DateTime.now();
+    final receivedMs = _diagnostics?.nowElapsedMs;
+    final callbackId =
+        'sampling-callback-${receivedMs ?? 0}-${(++_samplingCallbackSequence).toString().padLeft(5, '0')}';
+    final processingStartedMs = _diagnostics?.nowElapsedMs;
+    final previousActivity = _activity;
+    final previousConfidence = _confidence;
+    final previousEvidenceMs = _latestEvidenceElapsedMs;
     final activity = event.type.toTrackingActivity();
     final confidence = event.confidence.toTrackingConfidence();
+    _diagnostics?.record(
+      StepDiagnosticEventType.samplingCallbackEnter,
+      payload: {
+        'samplingCallbackId': callbackId,
+        'samplingCallbackReceivedElapsedRealtimeMs': receivedMs,
+        'samplingCallbackReceivedWallClockUtc': now.toUtc().toIso8601String(),
+        'samplingCallbackProcessingStartedElapsedRealtimeMs':
+            processingStartedMs,
+        'activityEventElapsedRealtimeMs': null,
+        'activityEventTimestampAvailable': false,
+      },
+    );
     if (!_isTracking || _isStopping || session == null) {
       logStepDiagnostic(
         '[STEP_ACTIVITY] type=${activity.storageName} '
         'confidence=${confidence.storageName} '
         'timestamp=${now.toIso8601String()} windowActive=false '
         'bucket=none result=ignoredNotTracking',
+      );
+      final completed = _diagnostics?.nowElapsedMs;
+      _diagnostics?.record(
+        StepDiagnosticEventType.samplingActivityIgnored,
+        payload: {
+          'samplingCallbackId': callbackId,
+          'ignoredReason': 'OUTSIDE_ACTIVE_SESSION',
+          'samplingCallbackProcessingCompletedElapsedRealtimeMs': completed,
+          'samplingCallbackProcessingDurationMs': _duration(
+            processingStartedMs,
+            completed,
+          ),
+        },
       );
       return;
     }
@@ -203,6 +382,84 @@ final class StepTaskHandler extends TaskHandler {
       timestamp: now,
     );
     final bucketIndex = session.bucketIndexAt(now);
+    _latestEvidenceElapsedMs = receivedMs;
+    _latestEvidenceWindowId = session.hasActiveWindow ? _windowId : null;
+    _latestEvidenceBucketIndex = bucketIndex;
+    if (bucketIndex != null) {
+      (_bucketSamplingHistory[bucketIndex] ??= []).add({
+        'elapsedMs': receivedMs,
+        'activity': activity.storageName,
+        'confidence': confidence.storageName,
+      });
+    }
+    _diagnostics?.record(
+      StepDiagnosticEventType.samplingActivityParsed,
+      windowId: session.hasActiveWindow ? _windowId : null,
+      bucketIndex: bucketIndex,
+      payload: {
+        'samplingCallbackId': callbackId,
+        'rawActivityType': event.type.toString(),
+        'mappedActivityType': activity.storageName,
+        'rawConfidence': event.confidence.toString(),
+        'mappedConfidence': confidence.storageName,
+        'callbackReceivedElapsedRealtimeMs': receivedMs,
+        'previousActivityType': previousActivity.storageName,
+        'previousConfidence': previousConfidence.storageName,
+        'previousEvidenceReceivedElapsedRealtimeMs': previousEvidenceMs,
+        'becameCurrentEvidence': true,
+        'ignoredReason': null,
+        'currentWindowId': session.hasActiveWindow ? _windowId : null,
+        'currentBucketIndex': bucketIndex,
+      },
+    );
+    _diagnostics?.record(
+      StepDiagnosticEventType.samplingEvidenceUpdated,
+      payload: {
+        'samplingCallbackId': callbackId,
+        'previousActivityType': previousActivity.storageName,
+        'previousConfidence': previousConfidence.storageName,
+        'previousEvidenceReceivedElapsedRealtimeMs': previousEvidenceMs,
+        'newActivityType': activity.storageName,
+        'newConfidence': confidence.storageName,
+        'newEvidenceReceivedElapsedRealtimeMs': receivedMs,
+        'evidenceChanged':
+            previousActivity != activity || previousConfidence != confidence,
+        'changeReason': 'SAMPLING_CALLBACK_APPLIED',
+      },
+    );
+    final completedMs = _diagnostics?.nowElapsedMs;
+    _diagnostics?.record(
+      appliedToBucket
+          ? StepDiagnosticEventType.samplingActivityApplied
+          : StepDiagnosticEventType.samplingActivityIgnored,
+      windowId: session.hasActiveWindow ? _windowId : null,
+      bucketIndex: bucketIndex,
+      payload: {
+        'samplingCallbackId': callbackId,
+        'becameCurrentEvidence': true,
+        'appliedToBucket': appliedToBucket,
+        'ignoredReason': appliedToBucket ? null : 'NO_ACTIVE_BUCKET',
+        'samplingCallbackReceivedElapsedRealtimeMs': receivedMs,
+        'samplingCallbackProcessingStartedElapsedRealtimeMs':
+            processingStartedMs,
+        'samplingCallbackProcessingCompletedElapsedRealtimeMs': completedMs,
+        'samplingCallbackProcessingDurationMs': _duration(
+          processingStartedMs,
+          completedMs,
+        ),
+        'timingInvariantPassed': _ordered(
+          receivedMs,
+          processingStartedMs,
+          completedMs,
+        ),
+        'timingInvariantFailures':
+            _ordered(receivedMs, processingStartedMs, completedMs)
+            ? <String>[]
+            : <String>[
+                'samplingCallbackReceived<=processingStarted<=processingCompleted',
+              ],
+      },
+    );
     logStepDiagnostic(
       '[STEP_ACTIVITY] type=${_activity.storageName} '
       'confidence=${_confidence.storageName} '
@@ -256,12 +513,83 @@ final class StepTaskHandler extends TaskHandler {
     if (session == null || !session.hasActiveWindow) return;
 
     final buckets = session.buckets;
+    final validationStartedMs = _diagnostics?.nowElapsedMs;
+    final confirmedBefore = session.confirmedSteps;
+    final provisionalBefore = session.provisionalSteps;
     for (var index = 0; index < buckets.length; index++) {
       final bucket = buckets[index];
       final valid = validationPolicy.isValidBucket(
         observedWalkingOrRunning: bucket.observedWalkingOrRunning,
         observedVehicleOrBicycle: bucket.observedVehicleOrBicycle,
         bestWalkingConfidence: bucket.bestWalkingConfidence,
+      );
+      final history = _bucketSamplingHistory[index] ?? const [];
+      final activityCounts = <String, int>{};
+      final confidenceCounts = <String, int>{};
+      for (final callback in history) {
+        final activity = callback['activity'].toString();
+        final confidence = callback['confidence'].toString();
+        activityCounts[activity] = (activityCounts[activity] ?? 0) + 1;
+        confidenceCounts[confidence] = (confidenceCounts[confidence] ?? 0) + 1;
+      }
+      final evidenceAge =
+          validationStartedMs == null || _latestEvidenceElapsedMs == null
+          ? null
+          : validationStartedMs - _latestEvidenceElapsedMs!;
+      final reason = valid
+          ? 'ACCEPTED_WALKING_CONFIDENCE'
+          : bucket.observedVehicleOrBicycle
+          ? 'REJECTED_IN_VEHICLE_OR_ON_BICYCLE'
+          : !bucket.observedWalkingOrRunning
+          ? 'REJECTED_NO_ACTIVITY_EVIDENCE'
+          : 'REJECTED_LOW_CONFIDENCE';
+      _diagnostics?.record(
+        StepDiagnosticEventType.bucketValidation,
+        windowId: _windowId,
+        bucketIndex: index,
+        payload: {
+          'bucketStartElapsedRealtimeMs': _windowStartedElapsedMs == null
+              ? null
+              : _windowStartedElapsedMs! +
+                    index * validationPolicy.bucketDuration.inMilliseconds,
+          'bucketEndElapsedRealtimeMs': _windowStartedElapsedMs == null
+              ? null
+              : _windowStartedElapsedMs! +
+                    (index + 1) *
+                        validationPolicy.bucketDuration.inMilliseconds,
+          'validationStartedElapsedRealtimeMs': validationStartedMs,
+          'candidateSteps': bucket.candidateSteps,
+          'acceptedSteps': valid ? bucket.candidateSteps : 0,
+          'rejectedSteps': valid ? 0 : bucket.candidateSteps,
+          'validationReason': reason,
+          'activityEvidenceType': _activity.storageName,
+          'activityEvidenceConfidence': _confidence.storageName,
+          'evidenceReceivedElapsedRealtimeMs': _latestEvidenceElapsedMs,
+          'evidenceAgeAtValidationStartMs': evidenceAge,
+          'evidenceWindowIdAtReceive': _latestEvidenceWindowId,
+          'evidenceBucketIndexAtReceive': _latestEvidenceBucketIndex,
+          'evidenceUsed': true,
+          'evidenceIgnored': false,
+          'walkingObserved': bucket.observedWalkingOrRunning,
+          'runningObserved': bucket.observedWalkingOrRunning,
+          'vehicleObserved': bucket.observedVehicleOrBicycle,
+          'bicycleObserved': bucket.observedVehicleOrBicycle,
+          'stillObserved': activityCounts['STILL'] != null,
+          'bestWalkingConfidence': bucket.bestWalkingConfidence.storageName,
+          'bestRunningConfidence': bucket.bestWalkingConfidence.storageName,
+          'minimumAcceptedConfidence': 'MEDIUM',
+          'configuredEvidenceStaleThresholdMs': null,
+          'evidenceConsideredStaleByCurrentImplementation': false,
+          'samplingCallbackCount': history.length,
+          'activityCountsByType': activityCounts,
+          'confidenceCounts': confidenceCounts,
+          'firstSamplingCallbackElapsedRealtimeMs': history.isEmpty
+              ? null
+              : history.first['elapsedMs'],
+          'lastSamplingCallbackElapsedRealtimeMs': history.isEmpty
+              ? null
+              : history.last['elapsedMs'],
+        },
       );
       logStepDiagnostic(
         '[STEP_BUCKET_VALIDATION] bucket=$index '
@@ -273,6 +601,46 @@ final class StepTaskHandler extends TaskHandler {
     }
 
     final result = session.completeWindow();
+    final validationCompletedMs = _diagnostics?.nowElapsedMs;
+    _diagnostics?.record(
+      StepDiagnosticEventType.windowValidation,
+      windowId: _windowId,
+      payload: {
+        'windowStartElapsedRealtimeMs': _windowStartedElapsedMs,
+        'windowEndElapsedRealtimeMs': _windowStartedElapsedMs == null
+            ? null
+            : _windowStartedElapsedMs! +
+                  validationPolicy.windowDuration.inMilliseconds,
+        'validationStartedElapsedRealtimeMs': validationStartedMs,
+        'validationCompletedElapsedRealtimeMs': validationCompletedMs,
+        'validationDurationMs': _duration(
+          validationStartedMs,
+          validationCompletedMs,
+        ),
+        'candidateStepTotal': result.confirmedStepsAdded + result.stepsRejected,
+        'acceptedStepTotal': result.confirmedStepsAdded,
+        'rejectedStepTotal': result.stepsRejected,
+        'confirmedBefore': confirmedBefore,
+        'confirmedAfter': session.confirmedSteps,
+        'provisionalBefore': provisionalBefore,
+        'provisionalFinal': session.provisionalSteps,
+        'timingInvariantPassed': _ordered(
+          validationStartedMs,
+          validationStartedMs,
+          validationCompletedMs,
+        ),
+        'timingInvariantFailures':
+            _ordered(
+              validationStartedMs,
+              validationStartedMs,
+              validationCompletedMs,
+            )
+            ? <String>[]
+            : <String>['validationStarted<=validationCompleted'],
+      },
+      flush: true,
+    );
+    _windowStartedElapsedMs = null;
     logStepDiagnostic(
       '[STEP_VALIDATION] accepted=${result.confirmedStepsAdded} '
       'rejected=${result.stepsRejected} '
@@ -284,6 +652,11 @@ final class StepTaskHandler extends TaskHandler {
   }
 
   void _onStepCountError(Object error, StackTrace stackTrace) {
+    _diagnostics?.record(
+      StepDiagnosticEventType.pedometerError,
+      payload: {'errorType': error.runtimeType.toString()},
+      flush: true,
+    );
     logStepDiagnostic(
       '[STEP_SENSOR_ERROR] timestamp=${DateTime.now().toIso8601String()} '
       'error=$error stack=${_singleLineStack(stackTrace)}',
@@ -293,6 +666,11 @@ final class StepTaskHandler extends TaskHandler {
   }
 
   void _onActivityError(Object error, StackTrace stackTrace) {
+    _diagnostics?.record(
+      StepDiagnosticEventType.samplingStreamError,
+      payload: {'errorType': error.runtimeType.toString()},
+      flush: true,
+    );
     logStepDiagnostic(
       '[STEP_ACTIVITY_ERROR] timestamp=${DateTime.now().toIso8601String()} '
       'error=$error stack=${_singleLineStack(stackTrace)}',
@@ -325,6 +703,10 @@ final class StepTaskHandler extends TaskHandler {
 
   void _publish({required String reason, bool persist = false}) {
     final snapshot = _buildSnapshot();
+    _diagnostics?.record(
+      StepDiagnosticEventType.snapshotCreated,
+      payload: _snapshotPayload(snapshot, reason),
+    );
     _sendToMain(snapshot, reason: reason);
     _updateNotificationIfChanged(snapshot);
 
@@ -343,8 +725,13 @@ final class StepTaskHandler extends TaskHandler {
     );
     FlutterForegroundTask.sendDataToMain(<String, dynamic>{
       'type': 'step_snapshot',
+      'diagnosticSessionId': _diagnostics?.sessionId,
       'payload': snapshot.toMap(),
     });
+    _diagnostics?.record(
+      StepDiagnosticEventType.snapshotSent,
+      payload: _snapshotPayload(snapshot, reason),
+    );
   }
 
   String _notificationText(StepSnapshot snapshot) {
@@ -434,7 +821,13 @@ final class StepTaskHandler extends TaskHandler {
     if (store == null) return;
 
     _writeChain = _writeChain
-        .then<void>((_) => store.writeSnapshot(snapshot, reason: reason))
+        .then<void>((_) async {
+          await store.writeSnapshot(snapshot, reason: reason);
+          _diagnostics?.record(
+            StepDiagnosticEventType.hiveWrite,
+            payload: _snapshotPayload(snapshot, reason),
+          );
+        })
         .catchError((Object error, StackTrace stackTrace) {
           _error = 'Hive write error: $error';
         });
@@ -449,11 +842,13 @@ final class StepTaskHandler extends TaskHandler {
         _publish(reason: 'uiSnapshotRequest');
         break;
       case 'reset_steps':
+        _diagnostics?.record(StepDiagnosticEventType.resetRequested);
         _cancelValidationTimer('reset');
         _session?.reset();
         _error = null;
         _stopReason = null;
         _publish(reason: 'reset', persist: true);
+        _diagnostics?.record(StepDiagnosticEventType.resetCompleted);
         break;
       case 'stop_tracking':
         unawaited(_stopTracking(reason: data['reason']?.toString() ?? 'user'));
@@ -487,6 +882,11 @@ final class StepTaskHandler extends TaskHandler {
     );
 
     _isStopping = true;
+    _diagnostics?.record(
+      StepDiagnosticEventType.serviceStop,
+      payload: {'reason': reason},
+      flush: true,
+    );
     _isTracking = false;
     _stopReason = reason;
     _cancelValidationTimer('stop:$reason');
@@ -522,12 +922,25 @@ final class StepTaskHandler extends TaskHandler {
       );
     }
     await _stepSubscription?.cancel();
+    _diagnostics?.record(StepDiagnosticEventType.pedometerUnsubscribe);
     if (_activitySubscription != null) {
       logStepDiagnostic(
         '[STEP_ACTIVITY_CANCEL] timestamp=${DateTime.now().toIso8601String()}',
       );
     }
-    await _activitySubscription?.cancel();
+    _diagnostics?.record(StepDiagnosticEventType.samplingUnsubscribeRequest);
+    try {
+      await _activitySubscription?.cancel();
+      _diagnostics?.record(
+        StepDiagnosticEventType.samplingUnsubscribeCompleted,
+      );
+    } catch (error) {
+      _diagnostics?.record(
+        StepDiagnosticEventType.samplingUnsubscribeFailure,
+        payload: {'errorType': error.runtimeType.toString()},
+        flush: true,
+      );
+    }
     _stepSubscription = null;
     _activitySubscription = null;
   }
@@ -541,6 +954,11 @@ final class StepTaskHandler extends TaskHandler {
       'windowActive=${_session?.hasActiveWindow ?? false} timeout=$isTimeout',
     );
     _isTracking = false;
+    _diagnostics?.record(
+      StepDiagnosticEventType.serviceDestroy,
+      payload: {'isTimeout': isTimeout},
+      flush: true,
+    );
     _cancelValidationTimer('destroy');
     _cancelNotificationTimer();
     _session?.stop();
@@ -550,6 +968,8 @@ final class StepTaskHandler extends TaskHandler {
     await _persistFinalSnapshot();
     await _store?.close();
     _store = null;
+    await _diagnostics?.close(finalize: true, incomplete: isTimeout);
+    _diagnostics = null;
   }
 
   String _sensorResult(RawStepStatus status, int? delta) {
@@ -565,6 +985,24 @@ final class StepTaskHandler extends TaskHandler {
   String _singleLineStack(StackTrace stackTrace) {
     return stackTrace.toString().replaceAll('\n', ' | ');
   }
+
+  int? _duration(int? start, int? end) =>
+      start == null || end == null ? null : end - start;
+  bool _ordered(int? first, int? second, int? third) =>
+      first == null ||
+      second == null ||
+      third == null ||
+      (first <= second && second <= third);
+  Map<String, Object?> _snapshotPayload(StepSnapshot snapshot, String reason) =>
+      {
+        'reason': reason,
+        'confirmedSteps': snapshot.confirmedSteps,
+        'provisionalSteps': snapshot.provisionalSteps,
+        'displayedSteps': snapshot.displayedSteps,
+        'activityType': snapshot.activity.storageName,
+        'confidence': snapshot.confidence.storageName,
+        'isTracking': snapshot.isTracking,
+      };
 }
 
 extension on ActivityType {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:walkingapp/l10n/app_localizations_extension.dart';
 
 import '../../../core/design_system/components/app_card.dart';
 import '../../../core/design_system/extensions/app_theme_extension.dart';
@@ -11,11 +12,14 @@ class AboutPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(leading: const BackButton(), title: const Text('About')),
+      appBar: AppBar(
+        leading: const BackButton(),
+        title: Text(context.l10n.about),
+      ),
       body: SafeArea(
         top: false,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
+          padding: const EdgeInsetsDirectional.fromSTEB(
             AppSpacing.lg,
             AppSpacing.xl,
             AppSpacing.lg,
@@ -47,7 +51,7 @@ class AboutPage extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
-                    'A focused walking companion for tracking daily steps and building a healthier routine.',
+                    context.l10n.aboutPageDescription,
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: context.appTheme.textSecondary,
@@ -55,28 +59,26 @@ class AboutPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xl),
-                  const AppCard(
+                  AppCard(
                     child: Column(
                       children: <Widget>[
                         _AboutRow(
                           icon: Icons.palette_outlined,
-                          title: 'Material 3 design',
-                          description:
-                              'Responsive Light and Dark themes use a modern health-focused Material 3 design system.',
+                          title: context.l10n.materialThreeDesign,
+                          description: context.l10n.materialThreeDescription,
                         ),
                         Divider(height: AppSpacing.xl),
                         _AboutRow(
                           icon: Icons.shield_outlined,
-                          title: 'Local preferences',
-                          description:
-                              'Theme, daily goal, and profile details stay in the app’s local preferences.',
+                          title: context.l10n.localPreferences,
+                          description: context.l10n.localPreferencesDescription,
                         ),
                         Divider(height: AppSpacing.xl),
                         _AboutRow(
                           icon: Icons.directions_walk_outlined,
-                          title: 'Purposeful tracking',
+                          title: context.l10n.purposefulTracking,
                           description:
-                              'Step validation and activity information work together while tracking is active.',
+                              context.l10n.purposefulTrackingDescription,
                         ),
                       ],
                     ),

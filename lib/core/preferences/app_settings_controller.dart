@@ -10,8 +10,10 @@ final class AppSettingsController extends ChangeNotifier {
       _profileName = preferences.profileName,
       _profileEmail = preferences.profileEmail,
       _onboardingCompleted = preferences.onboardingCompleted,
+      _isAuthenticated = preferences.isAuthenticated,
       _rewardInterests = preferences.rewardInterests,
       _selectedCity = preferences.selectedCity,
+      _locale = Locale(preferences.selectedLanguageCode),
       _inAppDailyGoalReminderEnabled =
           preferences.inAppDailyGoalReminderEnabled,
       _inAppDailyGoalReminderTime = preferences.inAppDailyGoalReminderTime,
@@ -26,8 +28,10 @@ final class AppSettingsController extends ChangeNotifier {
       _profileName = '',
       _profileEmail = '',
       _onboardingCompleted = false,
+      _isAuthenticated = false,
       _rewardInterests = const <String>[],
       _selectedCity = 'Prefer not to say',
+      _locale = const Locale('fa'),
       _inAppDailyGoalReminderEnabled = false,
       _inAppDailyGoalReminderTime = null,
       _inAppGoalCompletionEnabled = true,
@@ -40,8 +44,10 @@ final class AppSettingsController extends ChangeNotifier {
   String _profileName;
   String _profileEmail;
   bool _onboardingCompleted;
+  bool _isAuthenticated;
   List<String> _rewardInterests;
   String _selectedCity;
+  Locale _locale;
   bool _inAppDailyGoalReminderEnabled;
   int? _inAppDailyGoalReminderTime;
   bool _inAppGoalCompletionEnabled;
@@ -53,9 +59,11 @@ final class AppSettingsController extends ChangeNotifier {
   String get profileName => _profileName;
   String get profileEmail => _profileEmail;
   bool get onboardingCompleted => _onboardingCompleted;
+  bool get isAuthenticated => _isAuthenticated;
   List<String> get rewardInterests =>
       List<String>.unmodifiable(_rewardInterests);
   String get selectedCity => _selectedCity;
+  Locale get locale => _locale;
   bool get inAppDailyGoalReminderEnabled => _inAppDailyGoalReminderEnabled;
   int? get inAppDailyGoalReminderTime => _inAppDailyGoalReminderTime;
   bool get inAppGoalCompletionEnabled => _inAppGoalCompletionEnabled;
@@ -67,6 +75,14 @@ final class AppSettingsController extends ChangeNotifier {
     _themeMode = value;
     notifyListeners();
     await _preferences?.setThemeMode(value);
+  }
+
+  Future<void> setLocale(Locale value) async {
+    final languageCode = value.languageCode == 'en' ? 'en' : 'fa';
+    if (_locale.languageCode == languageCode) return;
+    _locale = Locale(languageCode);
+    notifyListeners();
+    await _preferences?.setSelectedLanguageCode(languageCode);
   }
 
   Future<void> setDailyGoal(int value) async {
@@ -120,6 +136,13 @@ final class AppSettingsController extends ChangeNotifier {
     if (_onboardingCompleted) return;
     await _preferences?.setOnboardingCompleted(true);
     _onboardingCompleted = true;
+    notifyListeners();
+  }
+
+  Future<void> setAuthenticated(bool value) async {
+    if (_isAuthenticated == value) return;
+    await _preferences?.setAuthenticated(value);
+    _isAuthenticated = value;
     notifyListeners();
   }
 

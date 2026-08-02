@@ -5,6 +5,7 @@ import '../../../core/design_system/components/app_card.dart';
 import '../../../core/design_system/components/app_feedback.dart';
 import '../../../core/design_system/components/app_status_chip.dart';
 import '../../../core/design_system/tokens/app_tokens.dart';
+import '../../../l10n/app_localizations_extension.dart';
 import '../application/rewards_controller.dart';
 import '../domain/claimed_reward.dart';
 import '../domain/claimed_reward_source_type.dart';
@@ -19,19 +20,18 @@ class MyRewardsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('My Rewards')),
+      appBar: AppBar(title: Text(context.l10n.myRewards)),
       body: AnimatedBuilder(
         animation: controller,
         builder: (context, child) {
           final claims = controller.claimedRewards;
           if (claims.isEmpty) {
-            return const Center(
+            return Center(
               child: Padding(
                 padding: EdgeInsets.all(AppSpacing.lg),
                 child: AppEmptyState(
-                  title: 'No claimed rewards yet',
-                  message:
-                      'Complete eligible campaigns or redeem a reward with points.',
+                  title: context.l10n.noClaimedRewards,
+                  message: context.l10n.noClaimedRewardsDescription,
                   icon: Icons.card_giftcard_outlined,
                 ),
               ),
@@ -42,14 +42,18 @@ class MyRewardsPage extends StatelessWidget {
             children: <Widget>[
               for (final status in CouponStatus.values) ...<Widget>[
                 Text(
-                  couponStatusLabel(status),
+                  couponStatusLabel(context.l10n, status),
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 if (claims
                     .where((item) => item.statusAt(DateTime.now()) == status)
                     .isEmpty)
-                  Text('No ${couponStatusLabel(status).toLowerCase()} rewards.')
+                  Text(
+                    context.l10n.noRewardsWithStatus(
+                      couponStatusLabel(context.l10n, status),
+                    ),
+                  )
                 else
                   for (final claim in claims.where(
                     (item) => item.statusAt(DateTime.now()) == status,
@@ -88,9 +92,9 @@ class _ClaimCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Align(
-            alignment: Alignment.centerLeft,
+            alignment: AlignmentDirectional.centerStart,
             child: AppStatusChip(
-              label: couponStatusLabel(status),
+              label: couponStatusLabel(context.l10n, status),
               status: status == CouponStatus.available
                   ? AppStatus.success
                   : AppStatus.neutral,
@@ -99,16 +103,20 @@ class _ClaimCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Text(
             claim.sourceType == ClaimedRewardSourceType.campaign
-                ? 'Campaign reward'
-                : 'Points redemption',
+                ? context.l10n.campaignRewardSource
+                : context.l10n.pointsRedemptionSource,
           ),
-          Text('Claimed ${rewardDate(claim.claimedAt)}'),
-          Text('Expires ${rewardDate(claim.expiresAt)}'),
+          Text(
+            context.l10n.claimedOn(rewardDate(context.l10n, claim.claimedAt)),
+          ),
+          Text(
+            context.l10n.expiresOn(rewardDate(context.l10n, claim.expiresAt)),
+          ),
           const SizedBox(height: AppSpacing.md),
           Align(
-            alignment: Alignment.centerLeft,
+            alignment: AlignmentDirectional.centerStart,
             child: AppButton(
-              label: 'View coupon',
+              label: context.l10n.viewCoupon,
               variant: AppButtonVariant.outlined,
               onPressed: () => Navigator.of(context).push<void>(
                 MaterialPageRoute<void>(

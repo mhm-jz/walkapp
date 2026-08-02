@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:walkingapp/l10n/app_localizations_extension.dart';
 
 import '../../../core/design_system/components/app_card.dart';
 import '../../../core/design_system/components/app_status_chip.dart';
@@ -24,7 +25,7 @@ class AchievementsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Achievements')),
+      appBar: AppBar(title: Text(context.l10n.achievements)),
       body: SafeArea(
         top: false,
         child: AnimatedBuilder(
@@ -42,7 +43,7 @@ class AchievementsPage extends StatelessWidget {
                 .where((item) => item.isUnlocked)
                 .length;
             return ListView(
-              padding: const EdgeInsets.fromLTRB(
+              padding: const EdgeInsetsDirectional.fromSTEB(
                 AppSpacing.lg,
                 AppSpacing.lg,
                 AppSpacing.lg,
@@ -50,12 +51,15 @@ class AchievementsPage extends StatelessWidget {
               ),
               children: <Widget>[
                 Text(
-                  'Your achievements',
+                  context.l10n.yourAchievements,
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  '$unlocked of ${achievements.length} unlocked from real local activity.',
+                  context.l10n.achievementProgress(
+                    unlocked,
+                    achievements.length,
+                  ),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: context.appTheme.textSecondary,
                   ),
@@ -102,24 +106,32 @@ class _AchievementCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 Text(
-                  achievement.title,
+                  _title(context, achievement.type),
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: AppSpacing.xs),
-                Text(achievement.description),
+                Text(_description(context, achievement.type)),
                 const SizedBox(height: AppSpacing.sm),
                 Wrap(
                   spacing: AppSpacing.sm,
                   runSpacing: AppSpacing.sm,
                   children: <Widget>[
                     AppStatusChip(
-                      label: achievement.category,
-                      status: achievement.category == 'Campaign'
+                      label:
+                          achievement.category ==
+                              HealthAchievementCategory.campaign
+                          ? context.l10n.campaignCategory
+                          : context.l10n.healthCategory,
+                      status:
+                          achievement.category ==
+                              HealthAchievementCategory.campaign
                           ? AppStatus.info
                           : AppStatus.neutral,
                     ),
                     AppStatusChip(
-                      label: achievement.isUnlocked ? 'Unlocked' : 'Locked',
+                      label: achievement.isUnlocked
+                          ? context.l10n.unlocked
+                          : context.l10n.locked,
                       status: achievement.isUnlocked
                           ? AppStatus.success
                           : AppStatus.neutral,
@@ -129,9 +141,11 @@ class _AchievementCard extends StatelessWidget {
                 if (achievement.unlockedAt != null) ...<Widget>[
                   const SizedBox(height: AppSpacing.sm),
                   Text(
-                    'Unlocked ${achievement.unlockedAt!.month}/'
-                    '${achievement.unlockedAt!.day}/'
-                    '${achievement.unlockedAt!.year}',
+                    context.l10n.unlockedOn(
+                      '${achievement.unlockedAt!.month}/'
+                      '${achievement.unlockedAt!.day}/'
+                      '${achievement.unlockedAt!.year}',
+                    ),
                   ),
                 ],
               ],
@@ -141,4 +155,34 @@ class _AchievementCard extends StatelessWidget {
       ),
     );
   }
+
+  String _title(BuildContext context, HealthAchievementType type) =>
+      switch (type) {
+        HealthAchievementType.firstSteps => context.l10n.firstStepsAchievement,
+        HealthAchievementType.goalGetter => context.l10n.goalGetterAchievement,
+        HealthAchievementType.threeActiveDays =>
+          context.l10n.threeActiveDaysAchievement,
+        HealthAchievementType.consistentWalker =>
+          context.l10n.consistentWalkerAchievement,
+        HealthAchievementType.weeklyExplorer =>
+          context.l10n.weeklyExplorerAchievement,
+        HealthAchievementType.campaignFinisher =>
+          context.l10n.campaignFinisherAchievement,
+      };
+
+  String _description(BuildContext context, HealthAchievementType type) =>
+      switch (type) {
+        HealthAchievementType.firstSteps =>
+          context.l10n.firstStepsAchievementDescription,
+        HealthAchievementType.goalGetter =>
+          context.l10n.goalGetterAchievementDescription,
+        HealthAchievementType.threeActiveDays =>
+          context.l10n.threeActiveDaysAchievementDescription,
+        HealthAchievementType.consistentWalker =>
+          context.l10n.consistentWalkerAchievementDescription,
+        HealthAchievementType.weeklyExplorer =>
+          context.l10n.weeklyExplorerAchievementDescription,
+        HealthAchievementType.campaignFinisher =>
+          context.l10n.campaignFinisherAchievementDescription,
+      };
 }

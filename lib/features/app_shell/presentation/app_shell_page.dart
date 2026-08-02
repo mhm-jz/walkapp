@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:walkingapp/l10n/app_localizations_extension.dart';
 
 import '../../../core/preferences/app_settings_controller.dart';
 import '../../about/presentation/about_page.dart';
@@ -31,6 +32,7 @@ import '../../rewards/presentation/coupon_details_page.dart';
 import '../../history/presentation/history_page.dart';
 import '../../../core/design_system/components/app_feedback.dart';
 import '../../../core/design_system/components/embedded_destination_page.dart';
+import '../../../l10n/app_localizations.dart';
 
 class AppShellPage extends StatefulWidget {
   const AppShellPage({
@@ -67,22 +69,26 @@ class _AppShellPageState extends State<AppShellPage>
   late final RewardsController _rewardsController;
   late final DailyStepHistoryController _historyController;
   late final NotificationController _notificationController;
+  late String _catalogLanguageCode;
   int _selectedIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    _campaignRepository = LocalCampaignRepository();
+    _catalogLanguageCode = widget.settingsController.locale.languageCode;
+    _campaignRepository = LocalCampaignRepository(widget.settingsController);
     _campaignController = CampaignEnrollmentController(
       widget.enrollmentRepository,
       _campaignRepository,
       widget.stepController,
+      widget.settingsController,
     );
     _rewardsController = RewardsController(
-      LocalRewardCatalogRepository(),
+      LocalRewardCatalogRepository(widget.settingsController),
       widget.rewardWalletRepository,
       widget.claimedRewardRepository,
       _campaignController,
+      widget.settingsController,
     );
     _historyController = DailyStepHistoryController(
       widget.dailyStepHistoryRepository,
@@ -97,6 +103,7 @@ class _AppShellPageState extends State<AppShellPage>
       settingsController: widget.settingsController,
     );
     WidgetsBinding.instance.addObserver(this);
+    widget.settingsController.addListener(_handleLocaleChange);
     _initializeControllers();
     _pages = <Widget>[
       HomePage(
@@ -140,6 +147,14 @@ class _AppShellPageState extends State<AppShellPage>
     await _notificationController.initialize();
   }
 
+  Future<void> _handleLocaleChange() async {
+    final languageCode = widget.settingsController.locale.languageCode;
+    if (languageCode == _catalogLanguageCode) return;
+    _catalogLanguageCode = languageCode;
+    await _campaignController.initialize();
+    await _rewardsController.initialize();
+  }
+
   void _selectTab(int index) {
     if (_selectedIndex == index) return;
     setState(() => _selectedIndex = index);
@@ -148,6 +163,7 @@ class _AppShellPageState extends State<AppShellPage>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    widget.settingsController.removeListener(_handleLocaleChange);
     _notificationController.dispose();
     _rewardsController.dispose();
     _campaignController.dispose();
@@ -195,7 +211,7 @@ class _AppShellPageState extends State<AppShellPage>
           _selectTab(1);
           AppSnackbar.show(
             context,
-            'That campaign is no longer available. Showing Campaigns.',
+            context.l10n.campaignUnavailableShowingList,
           );
           return;
         }
@@ -216,7 +232,7 @@ class _AppShellPageState extends State<AppShellPage>
           _selectTab(2);
           AppSnackbar.show(
             context,
-            'That coupon is no longer available. Showing Rewards.',
+            context.l10n.couponUnavailableShowingRewards,
           );
           return;
         }
@@ -229,7 +245,7 @@ class _AppShellPageState extends State<AppShellPage>
       case AppNotificationDestination.history:
         _openPage(
           EmbeddedDestinationPage(
-            title: 'History',
+            title: context.l10n.history,
             bodyBuilder: (showHeading) => HistoryPage(
               controller: _historyController,
               showHeading: showHeading,
@@ -249,6 +265,7 @@ class _AppShellPageState extends State<AppShellPage>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       key: _scaffoldKey,
       body: IndexedStack(index: _selectedIndex, children: _pages),
@@ -266,7 +283,7 @@ class _AppShellPageState extends State<AppShellPage>
         ),
         onSettings: () => _openPage(
           EmbeddedDestinationPage(
-            title: 'Settings',
+            title: l10n.settings,
             bodyBuilder: (showHeading) => SettingsPage(
               settingsController: widget.settingsController,
               onLogout: widget.onLogout,
@@ -283,26 +300,26 @@ class _AppShellPageState extends State<AppShellPage>
         onDestinationSelected: (index) {
           _selectTab(index);
         },
-        destinations: const <NavigationDestination>[
+        destinations: <NavigationDestination>[
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home),
-            label: 'Home',
+            label: l10n.home,
           ),
           NavigationDestination(
             icon: Icon(Icons.campaign_outlined),
             selectedIcon: Icon(Icons.campaign),
-            label: 'Campaigns',
+            label: l10n.campaigns,
           ),
           NavigationDestination(
             icon: Icon(Icons.redeem_outlined),
             selectedIcon: Icon(Icons.redeem),
-            label: 'Rewards',
+            label: l10n.rewards,
           ),
           NavigationDestination(
             icon: Icon(Icons.monitor_heart_outlined),
             selectedIcon: Icon(Icons.monitor_heart),
-            label: 'Progress',
+            label: l10n.progress,
           ),
         ],
       ),
