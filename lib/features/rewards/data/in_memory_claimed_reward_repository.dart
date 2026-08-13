@@ -1,0 +1,32 @@
+import '../domain/claimed_reward.dart';
+import '../domain/repositories/claimed_reward_repository.dart';
+
+final class InMemoryClaimedRewardRepository implements ClaimedRewardRepository {
+  final List<ClaimedReward> _items = <ClaimedReward>[];
+  final Set<String> _keys = <String>{};
+
+  @override
+  Future<List<ClaimedReward>> loadClaimedRewards() async =>
+      List<ClaimedReward>.unmodifiable(_items);
+
+  @override
+  Future<bool> addClaimedReward(
+    ClaimedReward reward, {
+    required String idempotencyKey,
+  }) async {
+    if (!_keys.add(idempotencyKey)) return false;
+    _items.add(reward);
+    return true;
+  }
+
+  @override
+  Future<void> updateClaimedReward(ClaimedReward reward) async {
+    final index = _items.indexWhere((item) => item.id == reward.id);
+    if (index >= 0) _items[index] = reward;
+  }
+
+  @override
+  Future<void> removeClaimedReward(String id) async {
+    _items.removeWhere((item) => item.id == id);
+  }
+}

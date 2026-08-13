@@ -1,0 +1,149 @@
+import '../../../../core/preferences/app_settings_controller.dart';
+import '../../../../l10n/app_localizations.dart';
+import '../../domain/reward.dart';
+import '../../domain/reward_channel.dart';
+import '../../domain/reward_type.dart';
+import 'reward_catalog_local_data_source.dart';
+
+final class LocalRewardCatalogDataSource
+    implements RewardCatalogLocalDataSource {
+  LocalRewardCatalogDataSource(this._settingsController);
+
+  final AppSettingsController _settingsController;
+
+  @override
+  Future<List<Reward>> getRewards() async {
+    final l10n = lookupAppLocalizations(_settingsController.locale);
+    return <Reward>[
+      Reward(
+        id: 'movewear-active-10',
+        brandName: 'MoveWear',
+        brandInitials: 'MW',
+        title: l10n.rewardMoveWearContent('title'),
+        shortDescription: l10n.rewardMoveWearContent('short'),
+        fullDescription: l10n.rewardMoveWearContent('full'),
+        type: RewardType.discountOffer,
+        category: 'Clothing',
+        requiredPoints: 150,
+        discountLabel: l10n.rewardMoveWearContent('discount'),
+        usageChannel: RewardChannel.onlineAndInStore,
+        minimumPurchaseDescription: l10n.rewardMoveWearContent('minimum'),
+        terms: <String>[
+          l10n.rewardMoveWearContent('term1'),
+          l10n.rewardMoveWearContent('term2'),
+        ],
+        expirationDescription: l10n.rewardMoveWearContent('expiration'),
+        validForDays: 14,
+        inventoryLabel: l10n.rewardMoveWearContent('inventory'),
+        isFeatured: true,
+        isAvailable: true,
+      ),
+      Reward(
+        id: 'greenbite-meal-20',
+        brandName: 'GreenBite',
+        brandInitials: 'GB',
+        title: l10n.rewardGreenBiteContent('title'),
+        shortDescription: l10n.rewardGreenBiteContent('short'),
+        fullDescription: l10n.rewardGreenBiteContent('full'),
+        type: RewardType.discountOffer,
+        category: 'Food',
+        requiredPoints: 250,
+        discountLabel: l10n.rewardGreenBiteContent('discount'),
+        usageChannel: RewardChannel.online,
+        minimumPurchaseDescription: l10n.rewardGreenBiteContent('minimum'),
+        terms: <String>[
+          l10n.rewardGreenBiteContent('term1'),
+          l10n.rewardGreenBiteContent('term2'),
+        ],
+        expirationDescription: l10n.rewardGreenBiteContent('expiration'),
+        validForDays: 10,
+        inventoryLabel: l10n.rewardGreenBiteContent('inventory'),
+        isFeatured: false,
+        isAvailable: true,
+      ),
+      Reward(
+        id: 'urbanfit-equipment-15',
+        brandName: 'UrbanFit',
+        brandInitials: 'UF',
+        title: l10n.rewardUrbanFitContent('title'),
+        shortDescription: l10n.rewardUrbanFitContent('short'),
+        fullDescription: l10n.rewardUrbanFitContent('full'),
+        type: RewardType.discountOffer,
+        category: 'Sports',
+        requiredPoints: 400,
+        discountLabel: l10n.rewardUrbanFitContent('discount'),
+        usageChannel: RewardChannel.online,
+        minimumPurchaseDescription: l10n.rewardUrbanFitContent('minimum'),
+        terms: <String>[
+          l10n.rewardUrbanFitContent('term1'),
+          l10n.rewardUrbanFitContent('term2'),
+        ],
+        expirationDescription: l10n.rewardUrbanFitContent('expiration'),
+        validForDays: 21,
+        inventoryLabel: l10n.rewardUrbanFitContent('inventory'),
+        isFeatured: false,
+        isAvailable: true,
+      ),
+      Reward(
+        id: 'stepstyle-socks-12',
+        brandName: 'StepStyle',
+        brandInitials: 'SS',
+        title: l10n.rewardStepStyleContent('title'),
+        shortDescription: l10n.rewardStepStyleContent('short'),
+        fullDescription: l10n.rewardStepStyleContent('full'),
+        type: RewardType.discountOffer,
+        category: 'Clothing',
+        requiredPoints: 100,
+        discountLabel: l10n.rewardStepStyleContent('discount'),
+        usageChannel: RewardChannel.inStore,
+        minimumPurchaseDescription: l10n.rewardStepStyleContent('minimum'),
+        terms: <String>[l10n.rewardStepStyleContent('term1')],
+        expirationDescription: l10n.rewardStepStyleContent('expiration'),
+        validForDays: 7,
+        inventoryLabel: l10n.rewardStepStyleContent('inventory'),
+        isFeatured: false,
+        isAvailable: true,
+      ),
+      Reward(
+        id: 'freshday-wellness-20',
+        brandName: 'FreshDay',
+        brandInitials: 'FD',
+        title: l10n.rewardFreshDayContent('title'),
+        shortDescription: l10n.rewardFreshDayContent('short'),
+        fullDescription: l10n.rewardFreshDayContent('full'),
+        type: RewardType.discountOffer,
+        category: 'Wellness',
+        requiredPoints: 550,
+        discountLabel: l10n.rewardFreshDayContent('discount'),
+        usageChannel: RewardChannel.online,
+        minimumPurchaseDescription: l10n.rewardFreshDayContent('minimum'),
+        terms: <String>[l10n.rewardFreshDayContent('term1')],
+        expirationDescription: l10n.rewardFreshDayContent('expiration'),
+        validForDays: 14,
+        inventoryLabel: l10n.rewardFreshDayContent('inventory'),
+        isFeatured: false,
+        isAvailable: true,
+      ),
+      Reward(
+        id: 'activelife-session-25',
+        brandName: 'ActiveLife',
+        brandInitials: 'AL',
+        title: l10n.rewardActiveLifeContent('title'),
+        shortDescription: l10n.rewardActiveLifeContent('short'),
+        fullDescription: l10n.rewardActiveLifeContent('full'),
+        type: RewardType.discountOffer,
+        category: 'Wellness',
+        requiredPoints: 300,
+        discountLabel: l10n.rewardActiveLifeContent('discount'),
+        usageChannel: RewardChannel.inStore,
+        minimumPurchaseDescription: l10n.rewardActiveLifeContent('minimum'),
+        terms: <String>[l10n.rewardActiveLifeContent('term1')],
+        expirationDescription: l10n.rewardActiveLifeContent('expiration'),
+        validForDays: 14,
+        inventoryLabel: l10n.rewardActiveLifeContent('inventory'),
+        isFeatured: false,
+        isAvailable: false,
+      ),
+    ];
+  }
+}
